@@ -81,6 +81,12 @@ xcodebuild -scheme Termo -configuration Release build
 
 > Requires Xcode 16+ on an Apple Silicon machine. Re-run `xcodegen generate` after adding or removing source files.
 
+SFTP directory transfer tests use an in-memory remote and fresh local temporary directories; they do not connect to servers:
+
+```bash
+xcodebuild -scheme Termo -configuration Debug -destination 'platform=macOS,arch=arm64' test
+```
+
 ## Architecture
 
 - **UI**: SwiftUI + AppKit, fully custom unified components; single window with a persistent menu-bar item

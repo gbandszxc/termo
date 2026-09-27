@@ -132,12 +132,30 @@ targets:
             fi
           fi
 
+  TermoTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: TermoTests
+    dependencies:
+      - target: Termo
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        FRAMEWORK_SEARCH_PATHS:
+          - $(inherited)
+          - $(SRCROOT)/Vendor
+
 # 共享 scheme：供 xcodebuild -scheme Termo 打包（scripts/package-app.sh）与 Xcode 运行/归档使用。
 schemes:
   Termo:
     build:
       targets:
         Termo: all
+    test:
+      config: Debug
+      targets:
+        - TermoTests
     run:
       config: Debug
     archive:

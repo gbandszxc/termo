@@ -81,6 +81,12 @@ xcodebuild -scheme Termo -configuration Release build
 
 > 需要 Xcode 16+ 与 Apple Silicon 机器。增删源文件后重跑 `xcodegen generate`。
 
+SFTP 目录传输测试使用内存远端与新建本地临时目录，不连接服务器：
+
+```bash
+xcodebuild -scheme Termo -configuration Debug -destination 'platform=macOS,arch=arm64' test
+```
+
 ## 技术架构
 
 - 界面：SwiftUI + AppKit，全自绘统一组件；单窗口 + 菜单栏常驻
