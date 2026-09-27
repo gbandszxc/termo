@@ -14,7 +14,7 @@
 
 - 上游：`icloudza/termo`；自用仓库：`gbandszxc/termo`。只向自用仓库推送，不向上游发 PR、issue、评论或联系社区；遵守非商业许可、钥匙串和脱敏约束。
 - fork 起点 / 最后同步基线：`ac788250967598c0ceb6543ac82b7f8ea13d230b`，上游 1.0.2 / build 34。
-- 个人记录：build 35 为本地包；36 发布目录传输和默认下载目录；37 发布终端与 SFTP 路径导航。
+- 个人记录：build 35 为本地包；36 发布目录传输和默认下载目录；37 发布终端与 SFTP 路径导航；38 增加自定义终端字体。
 - 个人标签为 `personal-<版本>-<build>`，Release 标题为 `Termo <版本> (<build>)`，附本地生成的 DMG。
 - `v*` Actions 关联上游签名、公证、R2 和 Sparkle 服务，不用于个人发布。`LC_ALL=C scripts/release.sh --dry-run` 仅作预览，实际通过个人标签与 `gh release` 发布。
 - 无 Developer ID 时采用 ad-hoc 签名、未公证；现有 Sparkle 源仍指向上游，不代表个人 Release 自动更新通道。
@@ -25,6 +25,7 @@
 
 | 改动 / 提交 | 主要文件 | 需要核对的行为 |
 |---|---|---|
+| 终端字体（build 38） | `SettingsView.swift`、`AppSettings.swift`、`AppModel.swift`、`Components.swift`、`TerminalFontSettingsTests.swift` | 自定义开关、本机字体搜索、双主题无箭头列表；预置与自定义值分别持久化、即时应用，字体缺失保留等宽回退；同步上游同类功能前先比较并确认。 |
 | 产品与视觉：`c6ee50e` | `CONTEXT.md`、`PRODUCT.md`、`DESIGN.md`、`.impeccable/design.json` | 自用定位；PRODUCT 仅作指针；规范与深浅主题 token 跟随实际代码，不用旧文档强盖新实现。 |
 | 工作约定：`636ec3a`、`3a62b1c`、`cc8171a` | `AGENTS.md` | 自用仓库边界、中文文案、非商业许可、钥匙串、脱敏与 XcodeGen 约定。 |
 | SFTP 目录传输：`a5e5b4d` | `DirectoryTransfer.swift`、`FileUpload.swift`、`RemoteFS.swift`、`FileOps.swift`、`FileBrowser.swift`、`AppModel.swift`、`BackgroundCenterView.swift` | 文件/目录及 Finder 混合传输、空目录、跳过链接、按需遍历；并发、暂停/取消、续传；最近 128 项历史与全部失败重试。 |
@@ -53,5 +54,7 @@
 5. 实机核对受影响的传输、导航、错误恢复、下载目录及深浅主题。更新最后同步基线、适配提交、已保留/替代/移除的差异，以及用户文档和翻译；仅推送自用仓库。
 
 ## 当前验收
+
+build 38：22 项测试通过（含自定义字体选择与切换持久化回归）；Release 归档、ReleaseMAS 构建及 DMG 内容与 ad-hoc 签名校验通过。
 
 build 37：Release、ReleaseMAS 编译与 21 项测试通过；默认回调跳过加载、浅色错误文案对比问题已修复。未做远端实机操作；界面服务超时，深浅主题截图未验证，不作为后续同步的实机验收证据。

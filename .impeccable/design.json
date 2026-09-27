@@ -245,6 +245,12 @@
       "kind": "input",
       "refersTo": "input-text",
       "description": "上传按钮左侧 pencil 编辑路径，编辑时切换为 xmark；ThemedTextField 回车导航、Escape 或 xmark 取消，失败保留原目录与列表并显示 yellow 图标、text/caption 文案 提示。终端右键复用同主机文件标签；没有 cwd 时保留已有目录，新建标签打开家目录。复用 26pt 工具栏热区及双主题 Pal。"
+    },
+    {
+      "name": "终端字体下拉",
+      "kind": "input",
+      "refersTo": "input-text",
+      "description": "220pt 字体选择框与其他行一致垂直居中对齐左侧文字；启用自定义字体复选框单独一行置于下拉框正下方并左缘对齐。预置与本机已安装字体分别保存。无箭头矩形列表使用 mantle 实底、r8、fill(0.12) 描边，复用 ThemedTextField 与 DropdownOption；搜索、滚动、外部点击及 Escape 关闭，空间不足向上展开。"
     }
   ],
   "narrative": {

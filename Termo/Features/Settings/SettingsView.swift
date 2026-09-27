@@ -7,6 +7,10 @@ struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var certStore = RDPCertTrustStore.shared
     @State private var showLanguageRestart = false
+    @State private var fontDropdownOpen = false
+    @State private var fontQuery = ""
+    @State private var fontKeyMonitor: Any?
+    @State private var installedFonts: [(value: String, label: String)] = []
 
     var body: some View {
         HStack(spacing: 0) {
@@ -17,6 +21,34 @@ struct SettingsView: View {
         .frame(width: 720, height: 480)
         .background(Pal.solidBase)
         .preferredColorScheme(theme.isDark ? .dark : .light)
+        .overlayPreferenceValue(TerminalFontAnchor.self) { anchor in
+            if fontDropdownOpen, let anchor {
+                GeometryReader { geometry in
+                    let rect = geometry[anchor]
+                    let height = min(CGFloat(280), max(rect.minY - 8, geometry.size.height - rect.maxY - 8))
+                    Color.clear.contentShape(Rectangle())
+                        .onTapGesture { fontDropdownOpen = false }
+                    fontDropdown
+                        .frame(width: 260, height: height)
+                        .offset(x: min(rect.minX, geometry.size.width - 268),
+                                y: rect.maxY + height + 4 <= geometry.size.height
+                                    ? rect.maxY + 4 : max(4, rect.minY - height - 4))
+                }
+            }
+        }
+        .onChange(of: fontDropdownOpen) {
+            removeFontKeyMonitor()
+            if fontDropdownOpen {
+                // 在原生 sheet 的取消操作之前消费 Escape，不依赖搜索框是否获得焦点。
+                fontKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                    guard event.keyCode == 53 else { return event }
+                    fontDropdownOpen = false
+                    return nil
+                }
+            }
+        }
+        .onDisappear { removeFontKeyMonitor() }
+        .onChange(of: model.settingsTab) { fontDropdownOpen = false }
         .onChange(of: settings.appLanguage) { showLanguageRestart = true }
         .overlay {
             if showLanguageRestart {
@@ -328,6 +360,69 @@ struct SettingsView: View {
 
     // MARK: - 终端
 
+    private func removeFontKeyMonitor() {
+        if let monitor = fontKeyMonitor { NSEvent.removeMonitor(monitor) }
+        fontKeyMonitor = nil
+    }
+
+    private var fontOptions: [(value: String, label: String)] {
+        let automatic = [(value: "", label: String(localized: "自动 (推荐)"))]
+        if settings.customTermFontEnabled { return automatic + installedFonts }
+        return automatic + [
+            ("SF Mono", "SF Mono"), ("Menlo", "Menlo"), ("Monaco", "Monaco"),
+            ("JetBrainsMono Nerd Font", "JetBrains Mono"),
+            ("FiraCode Nerd Font", "Fira Code"), ("MesloLGM Nerd Font", "Meslo LGM"),
+        ]
+    }
+
+    private func loadInstalledFonts() {
+        installedFonts = NSFontManager.shared.availableFonts.compactMap { name in
+            NSFont(name: name, size: 13).map { (value: name, label: $0.displayName ?? name) }
+        }.sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }
+    }
+
+    private var filteredFontOptions: [(value: String, label: String)] {
+        fontOptions.filter {
+            fontQuery.isEmpty || $0.label.localizedCaseInsensitiveContains(fontQuery)
+                || $0.value.localizedCaseInsensitiveContains(fontQuery)
+        }
+    }
+
+    private func selectFont(_ name: String) {
+        if settings.customTermFontEnabled { settings.customTermFont = name }
+        else { settings.termFont = name }
+        fontDropdownOpen = false
+    }
+
+    private var fontDropdown: some View {
+        VStack(spacing: 6) {
+            ThemedTextField(placeholder: "搜索字体…", text: $fontQuery, autofocus: true) {
+                if let first = filteredFontOptions.first { selectFont(first.value) }
+            }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 1) {
+                        ForEach(filteredFontOptions, id: \.value) { option in
+                            DropdownOption(verbatim: option.label,
+                                           selected: option.value == settings.effectiveTermFont) {
+                                selectFont(option.value)
+                            }
+                            .id(option.value)
+                        }
+                        if filteredFontOptions.isEmpty {
+                            Text("无匹配项").font(.system(size: 12)).foregroundStyle(Pal.subtext)
+                                .padding(.vertical, 8)
+                        }
+                    }
+                }
+                .onAppear { proxy.scrollTo(settings.effectiveTermFont, anchor: .center) }
+            }
+        }
+        .padding(6)
+        .background(Pal.solidMantle, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Pal.fill(0.12), lineWidth: 1))
+    }
+
     private var terminalSettings: some View {
         VStack(alignment: .leading, spacing: 24) {
             sectionHeader(String(localized: "终端"))
@@ -352,19 +447,55 @@ struct SettingsView: View {
                 .frame(width: 160)
             }
 
-            settingRow(String(localized: "字体"), description: String(localized: "终端显示使用的字体")) {
-                ThemedDropdown(
-                    options: [
-                        ("", String(localized: "自动 (推荐)")),
-                        ("SF Mono", "SF Mono"), ("Menlo", "Menlo"), ("Monaco", "Monaco"),
-                        ("JetBrainsMono Nerd Font", "JetBrains Mono"),
-                        ("FiraCode Nerd Font", "Fira Code"),
-                        ("MesloLGM Nerd Font", "Meslo LGM"),
-                    ],
-                    selection: $settings.termFont
-                )
-                .frame(width: 220)
+            VStack(alignment: .trailing, spacing: 10) {
+                settingRow(String(localized: "字体"), description: String(localized: "终端显示使用的字体")) {
+                    Button {
+                        if settings.customTermFontEnabled { loadInstalledFonts() }
+                        fontQuery = ""
+                        fontDropdownOpen.toggle()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(verbatim: fontOptions.first { $0.value == settings.effectiveTermFont }?.label
+                                 ?? settings.effectiveTermFont)
+                                .lineLimit(1).truncationMode(.tail)
+                            Spacer(minLength: 4)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Pal.overlay)
+                        }
+                        .font(.system(size: 13)).foregroundStyle(Pal.text)
+                        .padding(.horizontal, 11).padding(.vertical, 8)
+                        .background(Pal.fill(0.05), in: RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8)
+                            .stroke(fontDropdownOpen ? Pal.mauve : Pal.fill(0.12), lineWidth: fontDropdownOpen ? 1.5 : 1))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain).pointerCursor()
+                    .accessibilityLabel("字体")
+                    .accessibilityValue(Text(verbatim: fontOptions.first { $0.value == settings.effectiveTermFont }?.label
+                                             ?? settings.effectiveTermFont))
+                    .anchorPreference(key: TerminalFontAnchor.self, value: .bounds) { $0 }
+                    .frame(width: 220)
+                }
+
+                // 复选框独立成行，置于下拉框正下方并与左缘对齐，归属字体设置、不额外强调。
+                HStack(spacing: 8) {
+                    ThemedCheckbox(isOn: settings.customTermFontEnabled) {
+                        settings.customTermFontEnabled.toggle()
+                    }
+                    .accessibilityLabel("启用自定义字体")
+                    .accessibilityValue(settings.customTermFontEnabled ? Text("已启用") : Text("未启用"))
+                    Text("启用自定义字体")
+                        .font(.system(size: 12)).foregroundStyle(Pal.text)
+                        .onTapGesture { settings.customTermFontEnabled.toggle() }
+                }
+                .frame(width: 220, alignment: .leading)
             }
+            .onChange(of: settings.customTermFontEnabled) {
+                fontDropdownOpen = false
+                if settings.customTermFontEnabled { loadInstalledFonts() }
+            }
+            .onAppear { if settings.customTermFontEnabled { loadInstalledFonts() } }
 
             settingRow(String(localized: "字号"), description: String(localized: "终端字体大小")) {
                 ThemedStepper(value: $settings.termFontSize, range: 10...24, suffix: " pt")
@@ -453,5 +584,12 @@ struct SettingsView: View {
                 .background(Pal.fill(0.06), in: RoundedRectangle(cornerRadius: 5))
         }
         .padding(.vertical, 2)
+    }
+}
+
+private struct TerminalFontAnchor: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>? = nil
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = nextValue() ?? value
     }
 }

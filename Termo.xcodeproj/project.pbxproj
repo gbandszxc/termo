@@ -28,6 +28,7 @@
 		365595FD2E4D546CEF9E2FF1 /* CFreeRDP.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = E965A40BEE2746466C5F6D9E /* CFreeRDP.xcframework */; };
 		37C74361FD8D20E86BDE2F44 /* FileViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 984C300A771B216F5C348E38 /* FileViewer.swift */; };
 		3801418ADE5720C9809D4098 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2CAFBC8380A693E6ED2162D0 /* Assets.xcassets */; };
+		3AA11993394299C136EC7FF6 /* TerminalFontSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914B5B859A25099475A33B50 /* TerminalFontSettingsTests.swift */; };
 		3ADE7CFFF1DB19E46DF5BA30 /* RDPCertTrustStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D5CEEB5CB2A48E9B52465C0 /* RDPCertTrustStore.swift */; };
 		3CB26182AE9092AB27045790 /* LayoutModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C026D59ED91361778B6B4B83 /* LayoutModel.swift */; };
 		3F74E95EBEDF83AE11A4A723 /* CodeEditSourceEditor in Frameworks */ = {isa = PBXBuildFile; productRef = C802BDCF5DFDD914442BF1C7 /* CodeEditSourceEditor */; };
@@ -181,6 +182,7 @@
 		8C2B346E9462FFBEA66D9E8F /* SSHSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHSession.swift; sourceTree = "<group>"; };
 		8D459A9141AD020F9822273D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		8EE834618AF98B1816CF13B0 /* DirectoryTransferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryTransferTests.swift; sourceTree = "<group>"; };
+		914B5B859A25099475A33B50 /* TerminalFontSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalFontSettingsTests.swift; sourceTree = "<group>"; };
 		922A429B171BE608DC237A98 /* FileOps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOps.swift; sourceTree = "<group>"; };
 		960BB4F03437160E388C0A01 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		984C300A771B216F5C348E38 /* FileViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileViewer.swift; sourceTree = "<group>"; };
@@ -576,6 +578,7 @@
 			children = (
 				8EE834618AF98B1816CF13B0 /* DirectoryTransferTests.swift */,
 				E906230F56D75F69F263ED44 /* SFTPNavigationTests.swift */,
+				914B5B859A25099475A33B50 /* TerminalFontSettingsTests.swift */,
 			);
 			path = TermoTests;
 			sourceTree = "<group>";
@@ -832,6 +835,7 @@
 			files = (
 				7E96B6C2B8ED10A5E0AB45B0 /* DirectoryTransferTests.swift in Sources */,
 				5961705B69236C6589FC8AD1 /* SFTPNavigationTests.swift in Sources */,
+				3AA11993394299C136EC7FF6 /* TerminalFontSettingsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

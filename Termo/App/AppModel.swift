@@ -1139,7 +1139,7 @@ final class AppModel: ObservableObject {
     /// 当前终端字体（按设置；空名或找不到则回退到预置等宽字体）。
     private func currentTerminalFont() -> NSFont {
         let size = CGFloat(AppSettings.shared.termFontSize)
-        let name = AppSettings.shared.termFont
+        let name = AppSettings.shared.effectiveTermFont
         if !name.isEmpty, let f = NSFont(name: name, size: size) { return f }
         for n in ["JetBrainsMono Nerd Font", "MesloLGM Nerd Font", "MesloLGS Nerd Font",
                   "Hack Nerd Font", "FiraCode Nerd Font", "FiraCode Nerd Font Mono"] {

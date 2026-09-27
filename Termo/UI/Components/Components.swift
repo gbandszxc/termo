@@ -338,7 +338,7 @@ struct ThemedDropdown<T: Hashable>: View {
     }
 }
 
-private struct DropdownOption: View {
+struct DropdownOption: View {
     let label: Text
     let selected: Bool
     var leadingSymbol: String? = nil      // 非 nil 时在标签前画一个强调色小图标（如「新建」的 plus）

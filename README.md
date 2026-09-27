@@ -36,6 +36,7 @@ Under the hood, Termo runs its SSH / SFTP / terminal / port forwarding / keys en
 
 | Capability | Details |
 |---|---|
+| **Terminal fonts** | Presets or locally installed fonts; enable custom fonts to search and select, with changes applied immediately |
 | **SSH terminal** | Full terminal powered by SwiftTerm; in-process libssh2 engine for stable, fast connections |
 | **SFTP browsing** | Open the terminal’s current directory from its context menu, editable path navigation with path / permission errors, recursive file / folder upload and download, mixed Finder drops, rename / chmod, resumable transfers, concurrent queue, in-app remote code editing |
 | **Windows Remote Desktop** | Embedded FreeRDP: full-color graphics pipeline, keyboard input, two-way clipboard sync, resolution that follows the window |

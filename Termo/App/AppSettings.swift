@@ -80,6 +80,14 @@ final class AppSettings: ObservableObject {
     @Published var termFont: String {
         didSet { d.set(termFont, forKey: "termFont") }
     }
+    @Published var customTermFontEnabled: Bool {
+        didSet { d.set(customTermFontEnabled, forKey: "customTermFontEnabled") }
+    }
+    @Published var customTermFont: String {
+        didSet { d.set(customTermFont, forKey: "customTermFont") }
+    }
+    var effectiveTermFont: String { customTermFontEnabled ? customTermFont : termFont }
+
     @Published var termFontSize: Int {
         didSet { d.set(termFontSize, forKey: "termFontSize") }
     }
@@ -165,6 +173,8 @@ final class AppSettings: ObservableObject {
         closeConfirm = d.object(forKey: "closeConfirm") as? Bool ?? true
         editorMinimap = d.object(forKey: "editorMinimap") as? Bool ?? true
         termFont = d.string(forKey: "termFont") ?? ""
+        customTermFontEnabled = d.bool(forKey: "customTermFontEnabled")
+        customTermFont = d.string(forKey: "customTermFont") ?? ""
         termFontSize = d.object(forKey: "termFontSize") as? Int ?? 13
         termCursorStyle = d.string(forKey: "termCursorStyle") ?? "bar"
         termCursorBlink = d.object(forKey: "termCursorBlink") as? Bool ?? true
