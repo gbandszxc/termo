@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-27T04:34:50.685Z",
+  "title": "Design System: Termo",
+  "extensions": {
+    "colorMeta": {
+      "mauve": {
+        "role": "primary",
+        "displayName": "Signal Blue（信号蓝）",
+        "canonical": "#569cd6",
+        "tonalRamp": [
+          "#0f283e",
+          "#1a466b",
+          "#256498",
+          "#3081c5",
+          "#579cd6",
+          "#88b9e2",
+          "#b9d6ee",
+          "#eaf3fa"
+        ]
+      },
+      "green": {
+        "role": "secondary",
+        "displayName": "Verdant（青翠）",
+        "canonical": "#4ec9b0",
+        "tonalRamp": [
+          "#123b32",
+          "#1f6657",
+          "#2c917c",
+          "#39bca1",
+          "#5fceb7",
+          "#8edccc",
+          "#bdebe1",
+          "#ebf9f6"
+        ]
+      },
+      "yellow": {
+        "role": "tertiary",
+        "displayName": "Amber（琥珀）",
+        "canonical": "#d7ba7d",
+        "tonalRamp": [
+          "#3b2d12",
+          "#654f1f",
+          "#90702c",
+          "#bb913a",
+          "#ceaa5f",
+          "#dcc38e",
+          "#ebdcbd",
+          "#f9f5eb"
+        ]
+      },
+      "red": {
+        "role": "tertiary",
+        "displayName": "Alarm（警报红）",
+        "canonical": "#f14c4c",
+        "tonalRamp": [
+          "#470606",
+          "#7b0a0a",
+          "#af0e0e",
+          "#e31212",
+          "#f03d3d",
+          "#f47676",
+          "#f9afaf",
+          "#fde7e7"
+        ]
+      },
+      "base": {
+        "role": "neutral",
+        "displayName": "Base（墨色）",
+        "canonical": "#1e1e1e",
+        "tonalRamp": [
+          "#262626",
+          "#424242",
+          "#5e5e5e",
+          "#7a7a7a",
+          "#969696",
+          "#b5b5b5",
+          "#d4d4d4",
+          "#f2f2f2"
+        ]
+      },
+      "mantle": {
+        "role": "neutral",
+        "displayName": "Mantle（面板灰）",
+        "canonical": "#252526",
+        "tonalRamp": [
+          "#262627",
+          "#414143",
+          "#5d5d60",
+          "#79797c",
+          "#959598",
+          "#b4b4b6",
+          "#d3d3d4",
+          "#f2f2f2"
+        ]
+      },
+      "crust": {
+        "role": "neutral",
+        "displayName": "Crust（外壳灰）",
+        "canonical": "#333333",
+        "tonalRamp": [
+          "#262626",
+          "#424242",
+          "#5e5e5e",
+          "#7a7a7a",
+          "#969696",
+          "#b5b5b5",
+          "#d4d4d4",
+          "#f2f2f2"
+        ]
+      },
+      "surface0": {
+        "role": "neutral",
+        "displayName": "Surface0（浮层灰）",
+        "canonical": "#37373d",
+        "tonalRamp": [
+          "#242428",
+          "#3f3f46",
+          "#595963",
+          "#747481",
+          "#91919c",
+          "#b1b1b9",
+          "#d1d1d6",
+          "#f2f2f3"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "mono-terminal": {
+        "displayName": "终端等宽",
+        "purpose": "SSH/本地终端与编辑器；用户可选 Nerd Font，五级回退链。"
+      },
+      "body": {
+        "displayName": "正文 13",
+        "purpose": "输入框、按钮、列表行主文字——绝对主力字号。"
+      },
+      "caption": {
+        "displayName": "注脚 11",
+        "purpose": "IP、延迟徽章、分组头等元信息。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "dialog-lift",
+        "value": "0 8px 20px rgba(0,0,0,0.3)",
+        "purpose": "居中对话框唯一大阴影。"
+      },
+      {
+        "name": "pill-lift",
+        "value": "0 1px 1.5px rgba(0,0,0,0.25)",
+        "purpose": "分段控件选中药丸（深色）。"
+      },
+      {
+        "name": "knob-lift",
+        "value": "0 0.5px 1px rgba(0,0,0,0.2)",
+        "purpose": "开关旋钮。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-fast",
+        "value": "easeOut 0.12s",
+        "purpose": "聚焦描边、hover 淡入。"
+      },
+      {
+        "name": "ease-select",
+        "value": "easeOut 0.16s",
+        "purpose": "开关拨动。"
+      },
+      {
+        "name": "ease-select-slow",
+        "value": "easeOut 0.18s",
+        "purpose": "列表选中高亮、分段切换。"
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "mauve 实底主操作按钮（对话框确认、添加主机等）。",
+      "html": "<button class=\"ds-btn-primary\">确认</button>",
+      "css": ".ds-btn-primary{background:#569cd6;color:#fff;font:500 13px/1.35 -apple-system,'SF Pro Text',sans-serif;padding:7px 16px;border:none;border-radius:7px;cursor:pointer;transition:opacity .12s ease-out}.ds-btn-primary:hover{opacity:.9}.ds-btn-primary:disabled{opacity:.4;cursor:default}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "fill(6%) 底次按钮（取消等）。",
+      "html": "<button class=\"ds-btn-secondary\">取消</button>",
+      "css": ".ds-btn-secondary{background:rgba(255,255,255,.06);color:#9d9d9d;font:400 13px/1.35 -apple-system,'SF Pro Text',sans-serif;padding:7px 16px;border:none;border-radius:7px;cursor:pointer;transition:background .12s ease-out}.ds-btn-secondary:hover{background:rgba(255,255,255,.1)}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-text",
+      "description": "自绘输入框：聚焦时 mauve 1.5px 描边（原生 focus ring 全局禁用）。",
+      "html": "<input class=\"ds-input\" placeholder=\"主机地址\">",
+      "css": ".ds-input{background:rgba(255,255,255,.05);color:#ccc;font:400 13px/1.35 -apple-system,'SF Pro Text',sans-serif;padding:8px 11px;border:1px solid rgba(255,255,255,.12);border-radius:8px;outline:none;transition:border .12s ease-out;width:220px}.ds-input::placeholder{color:#7a7a7a}.ds-input:hover{border-color:rgba(255,255,255,.16)}.ds-input:focus{border-color:#569cd6;border-width:1.5px}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "chip",
+      "refersTo": "segment-selected",
+      "description": "自绘分段控件：容器 fill(6%) r9，选中白色/亮底小药丸带 Pill Lift。",
+      "html": "<div class=\"ds-seg\"><span class=\"ds-seg-item\">跟随系统</span><span class=\"ds-seg-item ds-on\">深色</span><span class=\"ds-seg-item\">浅色</span></div>",
+      "css": ".ds-seg{display:inline-flex;padding:3px;background:rgba(255,255,255,.06);border-radius:9px}.ds-seg-item{font:400 12px/1 -apple-system,'SF Pro Text',sans-serif;color:#9d9d9d;padding:6px 10px;border-radius:6px;cursor:pointer}.ds-seg-item.ds-on{background:#3d3d3f;color:#e8e8e8;font-weight:600;box-shadow:0 1px 1.5px rgba(0,0,0,.25)}"
+    },
+    {
+      "name": "Toggle",
+      "kind": "custom",
+      "refersTo": "toggle-on",
+      "description": "38×22 Capsule 开关，选中 mauve，18px 白旋钮。",
+      "html": "<span class=\"ds-toggle\"><span class=\"ds-knob\"></span></span> <span class=\"ds-toggle ds-off\"><span class=\"ds-knob\"></span></span>",
+      "css": ".ds-toggle{display:inline-flex;align-items:center;width:38px;height:22px;border-radius:9999px;background:#569cd6;cursor:pointer;justify-content:flex-end;transition:background .16s ease-out}.ds-toggle.ds-off{background:rgba(255,255,255,.18);justify-content:flex-start}.ds-knob{width:18px;height:18px;border-radius:50%;background:#fff;margin:2px;box-shadow:0 .5px 1px rgba(0,0,0,.2)}"
+    },
+    {
+      "name": "Tab Chip",
+      "kind": "nav",
+      "refersTo": "segment-selected",
+      "description": "标签栏 chip：r7，选中 fill(8%)，关闭钮 hover 才出现。",
+      "html": "<span class=\"ds-tab\"><span class=\"ds-tab-ic\">▮</span><span class=\"ds-tab-t\">8.130.183.252</span><span class=\"ds-x\">×</span></span> <span class=\"ds-tab ds-on\"><span class=\"ds-tab-ic\">▮</span><span class=\"ds-tab-t\">web-01</span><span class=\"ds-x\">×</span></span>",
+      "css": ".ds-tab{display:inline-flex;align-items:center;gap:7px;padding:5px 6px 5px 10px;border-radius:7px;cursor:pointer;color:#9d9d9d;font:400 12px/1 -apple-system,'SF Pro Text',sans-serif}.ds-tab .ds-tab-ic{font-size:11px}.ds-tab .ds-x{width:16px;height:16px;display:none;align-items:center;justify-content:center;border-radius:4px;background:rgba(255,255,255,.1);font-size:9px;color:#7a7a7a}.ds-tab:hover{background:rgba(255,255,255,.04)}.ds-tab:hover .ds-x,.ds-tab.ds-on .ds-x{display:inline-flex}.ds-tab.ds-on{background:rgba(255,255,255,.08);color:#ccc}"
+    },
+    {
+      "name": "Dialog Card",
+      "kind": "card",
+      "refersTo": "dialog-card",
+      "description": "居中确认对话框卡：base 实底 r14 + 描边 + Dialog Lift，遮罩 35%。",
+      "html": "<div class=\"ds-dialog\"><div class=\"ds-dialog-t\">删除主机？</div><div class=\"ds-dialog-m\">该操作不可撤销，主机配置将被移除。</div><div class=\"ds-dialog-a\"><button class=\"ds-btn-secondary\">取消</button><button class=\"ds-btn-danger\">删除</button></div></div>",
+      "css": ".ds-dialog{width:340px;padding:20px;background:#1e1e1e;border:1px solid rgba(255,255,255,.08);border-radius:14px;box-shadow:0 8px 20px rgba(0,0,0,.3)}.ds-dialog-t{font:600 15px/1.3 -apple-system,'SF Pro Text',sans-serif;color:#ccc;margin-bottom:8px}.ds-dialog-m{font:400 13px/1.45 -apple-system,'SF Pro Text',sans-serif;color:#9d9d9d;margin-bottom:14px}.ds-dialog-a{display:flex;gap:10px;justify-content:flex-end}.ds-btn-secondary{background:rgba(255,255,255,.06);color:#9d9d9d;font:400 13px/1 -apple-system,sans-serif;padding:7px 16px;border:none;border-radius:7px;cursor:pointer}.ds-btn-danger{background:#f14c4c;color:#fff;font:500 13px/1 -apple-system,sans-serif;padding:7px 16px;border:none;border-radius:7px;cursor:pointer}"
+    },
+    {
+      "name": "Host Row",
+      "kind": "custom",
+      "refersTo": "button-secondary",
+      "description": "侧栏主机行：选中 mauve 15% 底，行首状态点，行尾延迟徽章（语义色+文字双通道）。",
+      "html": "<div class=\"ds-host ds-active\"><span class=\"ds-dot\"></span><div class=\"ds-host-c\"><div class=\"ds-host-n\">web-01</div><div class=\"ds-host-i\">8.130.183.252</div></div><span class=\"ds-lat ds-good\">18 ms</span></div> <div class=\"ds-host\"><span class=\"ds-dot ds-warn\"></span><div class=\"ds-host-c\"><div class=\"ds-host-n\">db-slow</div><div class=\"ds-host-i\">10.0.0.7</div></div><span class=\"ds-lat ds-poor\">620 ms</span></div>",
+      "css": ".ds-host{display:flex;align-items:center;gap:9px;width:224px;padding:9px 8px;border-radius:8px;cursor:pointer;transition:background .12s ease-out}.ds-host:hover{background:rgba(255,255,255,.05)}.ds-host.ds-active{background:rgba(86,156,214,.15)}.ds-dot{width:7px;height:7px;border-radius:50%;background:#4ec9b0}.ds-dot.ds-warn{background:#f14c4c}.ds-host-c{flex:1;min-width:0}.ds-host-n{font:400 13px/1.3 -apple-system,sans-serif;color:#ccc}.ds-host-i{font:400 11px/1.3 -apple-system,sans-serif;color:#9d9d9d}.ds-lat{font:400 11px/1 -apple-system,sans-serif}.ds-lat.ds-good{color:#4ec9b0}.ds-lat.ds-poor{color:#f14c4c}"
+    }
+  ],
+  "narrative": {
+    "northStar": "安静的驾驶舱（The Quiet Cockpit）",
+    "overview": "Termo 的界面是一间深夜机房旁的驾驶舱：仪表都在，但没有一块仪表在抢戏。工作区永远是最暗（深色）或最亮（浅色）的那块风挡玻璃；强调蓝是舱内唯一的信号灯——只指示可操作与正在发生，从不参与装饰。信息密度对齐专业工具（VS Code 的骨架、Xcode 的克制、Ghostty 的终端观感），密度不是噪音，无序才是。颜色变量沿用 Catppuccin 词汇（crust/mantle/base/mauve），深色取值为 VS Code 经典配色，浅色换用 Tailwind 500 号色板；所有界面自绘 SwiftUI，系统原生控件外观一律禁用。",
+    "keyCharacteristics": [
+      "四级表面梯度 + 半透明叠加层表达一切层级，几乎不用阴影",
+      "唯一强调色双主题切换：深色 #569cd6 → 浅色 #3b82f6",
+      "交互反馈全部 easeOut 0.12–0.18s 短过渡",
+      "状态永远颜色 + 文字/图标双通道",
+      "圆角语言收敛在 6/7/8/14 四档"
+    ],
+    "rules": [
+      {
+        "name": "光落工作区",
+        "body": "表面梯度方向永远把光导向工作区：深色 crust(亮)→mantle→base(暗)，浅色 base(亮)→mantle→crust(暗)。新面板必须落进这四级，不许发明第五档底色。",
+        "section": "colors"
+      },
+      {
+        "name": "信号灯",
+        "body": "强调蓝任一屏占比 ≤10%。选中底、聚焦框、主按钮是它的全部舞台；列表、图表、正文不得大面积使用。",
+        "section": "colors"
+      },
+      {
+        "name": "三档",
+        "body": "UI 文本只在 11/12/13px 三档里选；往上只有标题（15/16），往下只有徽标（9–10px）。禁止为强调而放大正文。",
+        "section": "typography"
+      },
+      {
+        "name": "描边即边界",
+        "body": "卡片与输入框不靠阴影区分于背景，靠 fill(0.08–0.12) 的 1px 描边；阴影只给悬浮物（对话框、分段药丸、开关旋钮）。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "新面板从四级表面梯度里选底色，深浅两套同时校验",
+      "用 fill(0.04–0.12) 表达 hover/选中/描边",
+      "所有交互反馈用 easeOut 0.12–0.18s",
+      "状态用颜色+文字双通道",
+      "行内等宽字体呈现路径、命令、数值",
+      "可点击元素一律手型光标 + 自绘 tooltip"
+    ],
+    "donts": [
+      "禁用系统原生控件外观（focus ring、原生开关、原生弹窗）",
+      "强调蓝不超过一屏 ~10%，不作装饰/图表色",
+      "不发明第五档底色或新圆角档位",
+      "不给容器加阴影",
+      "不用放大字号做强调",
+      "不跨主题复用取值；不用纯白/纯黑做大面积底色"
+    ]
+  }
+}
