@@ -14,7 +14,7 @@
 
 - **上游**：[icloudza/termo](https://github.com/icloudza/termo)（v1.0.2 / build 34 起 fork），本仓库：[gbandszxc/termo](https://github.com/gbandszxc/termo)。
 - **用途**：个人自用；本地已安装原版 `/Applications/Termo.app` 作为视觉与行为的对照基准。
-- **方向**：有明确的新功能计划（具体条目待定，见下方 Roadmap 占位）。在新功能落地前，UI 与交互保持与上游一致，不主动偏离。
+- **方向**：持续吸收上游缺少的新功能，保留个人差异；双方已有同类功能时，客观比较并给出上游优先的推荐方案，取得维护者确认后再合并。展示版本 X.Y.Z 跟随采用的上游版本，个人版只以递增 build 区分；细则见 [fork 同步记录](docs/FORK_CHANGES.md)。
 
 ### Roadmap
 

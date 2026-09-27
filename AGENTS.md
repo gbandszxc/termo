@@ -4,7 +4,8 @@
 
 - 本仓库 fork 自 `icloudza/termo`，仅供个人自用，持续同步上游。
 - 只向 `gbandszxc/termo` commit / push；禁止向上游发 PR、issue、评论、帖子或联系原作者及社区，也不要建议这些操作。
-- 上游行为差异在本仓库内解决，保持改动便于 rebase。
+- 缺少的上游新功能直接合并；双方已有同类功能时，上游实现优先考虑，但必须先客观比较双方、给出推荐方案并取得用户明确确认，即使 Git 能自动合并也不能跳过。
+- 上游行为差异在本仓库内解决；已发布的 `main` 默认 merge，未发布独立分支可 rebase。
 - 遵守 PolyForm Noncommercial 1.0.0：禁止商用或闭源再分发。
 
 ## 文档
@@ -15,7 +16,7 @@
 | [CONTEXT.md](CONTEXT.md) | 产品决策前阅读；定位、约束或功能方向变化时更新。 |
 | [DESIGN.md](DESIGN.md) | UI 改动前必读；视觉变化先更新文档。 |
 | [CHANGELOG.md](CHANGELOG.md) | 发版前阅读；值得记录的变更写入 `[Unreleased]`，遵循 Keep a Changelog。 |
-| [FORK_CHANGES.md](FORK_CHANGES.md) | 个人改动与同步上游时必读；改动新增、移除或被上游替代后，同一提交更新差异与合并原则。 |
+| [docs/FORK_CHANGES.md](docs/FORK_CHANGES.md) | 个人改动与同步上游时必读；改动新增、移除或被上游替代后，同一提交更新差异与合并原则。 |
 | [PRODUCT.md](PRODUCT.md) | 不编辑，改 `CONTEXT.md`。 |
 
 ## UI
@@ -31,8 +32,8 @@
 - 编译验证：`xcodegen generate && xcodebuild -scheme Termo -configuration Release build`。
 - MAS 使用 `DebugMAS` / `ReleaseMAS`，相关改动兼容普通与沙盒构建。
 - 本地打包：`scripts/package-app.sh`；必须输出 `.app` 和 DMG 到 `dist/<版本>-<build>/`。
-- 版本号只改 `Termo/Info.plist`，`CFBundleVersion` 严格递增。
-- 个人发版沿用 `personal-<版本>-<build>` 标签与本地 DMG；`LC_ALL=C scripts/release.sh --dry-run` 仅作预览。`v*` 会触发关联上游分发服务的 Actions，不用于个人发布；详见 `FORK_CHANGES.md`。
+- 版本号只改 `Termo/Info.plist`；展示版本 X.Y.Z 与采用的上游版本一致，个人差异仅用 build 区分。`CFBundleVersion` 严格递增，新 build 大于已发布个人 build 和引入的上游 build。
+- 个人发版沿用 `personal-<版本>-<build>` 标签与本地 DMG；`LC_ALL=C scripts/release.sh --dry-run` 仅作预览。`v*` 会触发关联上游分发服务的 Actions，不用于个人发布；详见 `docs/FORK_CHANGES.md`。
 - 不随意升级 `Vendor/` 与 `LocalPackages/` 中的第三方依赖。
 
 ## 架构
