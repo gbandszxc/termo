@@ -15,6 +15,7 @@
 | [CONTEXT.md](CONTEXT.md) | 产品决策前阅读；定位、约束或功能方向变化时更新。 |
 | [DESIGN.md](DESIGN.md) | UI 改动前必读；视觉变化先更新文档。 |
 | [CHANGELOG.md](CHANGELOG.md) | 发版前阅读；值得记录的变更写入 `[Unreleased]`，遵循 Keep a Changelog。 |
+| [FORK_CHANGES.md](FORK_CHANGES.md) | 个人改动与同步上游时必读；改动新增、移除或被上游替代后，同一提交更新差异与合并原则。 |
 | [PRODUCT.md](PRODUCT.md) | 不编辑，改 `CONTEXT.md`。 |
 
 ## UI
@@ -31,7 +32,7 @@
 - MAS 使用 `DebugMAS` / `ReleaseMAS`，相关改动兼容普通与沙盒构建。
 - 本地打包：`scripts/package-app.sh`；必须输出 `.app` 和 DMG 到 `dist/<版本>-<build>/`。
 - 版本号只改 `Termo/Info.plist`，`CFBundleVersion` 严格递增。
-- 发版用 `scripts/release.sh`，预览用 `--dry-run`；推 tag 触发 GitHub Actions 发布。
+- 个人发版沿用 `personal-<版本>-<build>` 标签与本地 DMG；`LC_ALL=C scripts/release.sh --dry-run` 仅作预览。`v*` 会触发关联上游分发服务的 Actions，不用于个人发布；详见 `FORK_CHANGES.md`。
 - 不随意升级 `Vendor/` 与 `LocalPackages/` 中的第三方依赖。
 
 ## 架构
