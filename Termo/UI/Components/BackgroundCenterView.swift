@@ -546,7 +546,7 @@ private struct HubTransferRow: View {
         rowShell(
             icon: task.direction == .upload ? "arrow.up.circle" : "arrow.down.circle",
             iconColor: transferBlue,
-            title: String(localized: "\(verb) \(task.items.count) 项"),
+            title: String(localized: "\(verb) \(task.itemCount) 项"),
             subtitle: subtitle,
             statusDot: statusColor, statusText: statusText,
             progress: (task.phase == .running || task.phase == .paused) ? fraction : nil,

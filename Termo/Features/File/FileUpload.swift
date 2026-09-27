@@ -32,22 +32,16 @@ final class UploadItem: ObservableObject, Identifiable {
     @Published var state: ItemState = .waiting
     @Published var sent: Int64 = 0          // 已确认字节（用于进度与总量）
     var interrupted = false                 // 失败留下半截、可续传
+    let entry: TransferEntry
+    var isDirectory: Bool { entry.kind == .directory }
 
-    /// 上传项：url=本地源文件，remotePath=远端目标。
-    init(url: URL, destDir: String) {
-        self.url = url
-        self.name = url.lastPathComponent
-        self.localSize = UploadItem.fileSize(url)
-        self.remotePath = destDir.hasSuffix("/") ? destDir + name : destDir + "/" + name
-    }
-
-    /// 下载项：remotePath=远端源，url=本地目标（已由上层去重，避免覆盖本地已有文件/与其它下载撞名），
-    /// name 取实际落地文件名（可能带 “ (n)” 后缀），localSize=远端大小（用作进度分母）。
-    init(download file: RemoteFile, toLocalURL url: URL) {
-        self.url = url
-        self.name = url.lastPathComponent
-        self.localSize = file.size
-        self.remotePath = file.path
+    init(entry: TransferEntry) {
+        self.entry = entry
+        self.url = entry.localURL
+        self.name = entry.localURL.lastPathComponent
+        self.localSize = entry.size
+        self.remotePath = entry.remotePath
+        self.interrupted = entry.interrupted
     }
 
     var fraction: Double {
@@ -72,11 +66,11 @@ final class UploadTask: ObservableObject {
     nonisolated let id = UUID()
     let direction: TransferDirection
     let destDir: String
-    let totalBytes: Int64
+    @Published private(set) var totalBytes: Int64
     // 所属主机（用于后台中控按主机分组；创建后即设，仅展示用）
     var hostId: String? = nil
     var hostName: String = ""
-    private let fs: RemoteFS
+    private let fs: any TransferFileSystem
     private let onAllDone: () -> Void
 
     @Published var items: [UploadItem]
@@ -90,13 +84,14 @@ final class UploadTask: ObservableObject {
 
     /// 本任务是否有失败的文件（供托盘红灯等失败提示）。
     var hasFailure: Bool {
-        items.contains { if case .failed = $0.state { return true } else { return false } }
+        failureCount > 0 || items.contains { if case .failed = $0.state { return true } else { return false } }
     }
 
     /// 逐文件目标互斥锁（由协调器 AppModel 注入）：传输每个文件前后获取/释放，
     /// 仅当两任务真要同时写同一目标文件时才串行，避免 .part 临时文件互相覆盖；其余文件照常并发。
-    var acquirePathLock: ((String) async -> Void)? = nil
+    var acquirePathLock: ((String, UploadControl) async -> Bool)? = nil
     var releasePathLock: ((String) -> Void)? = nil
+    var onCancelRequested: (() -> Void)? = nil
 
     /// 单个目标文件的锁键：上传以「主机+远端路径」（.part 临时名相同才会撞），下载以本地路径。
     private func lockKey(_ item: UploadItem) -> String {
@@ -124,7 +119,7 @@ final class UploadTask: ObservableObject {
     private func switchLock(to key: String) async {
         if heldLockKey == key { return }
         if let h = heldLockKey { releasePathLock?(h); heldLockKey = nil }
-        await acquirePathLock?(key)
+        guard await acquirePathLock?(key, control) ?? true else { return }
         heldLockKey = key
     }
     /// 释放当前持有的写锁（任务收尾或被取消时）。
@@ -132,27 +127,42 @@ final class UploadTask: ObservableObject {
         if let h = heldLockKey { releasePathLock?(h); heldLockKey = nil }
     }
 
-    init(files: [URL], destDir: String, fs: RemoteFS, onAllDone: @escaping () -> Void) {
+    /// 一次用户操作只占一个队列名额；文件项逐个产生，不预扫描整棵树。
+    private var uploadRoots: [URL] = []
+    private var downloadRoots: [TransferEntry] = []
+    var reservedDownloadURLs: [URL] { downloadRoots.map(\.localURL) }
+    @Published private(set) var itemCount = 0
+    @Published private(set) var processedCount = 0
+    @Published private(set) var failureCount = 0
+    private var doneCount = 0
+    private var archivedSent: Int64 = 0
+    private var excludedBytes: Int64 = 0
+    private var failures: TransferJournal?
+    private var journalHasPartials = false
+    private var journalError: String?
+    private var retrySource: TransferJournal?
+    private var retryResuming = false
+    static let historyLimit = 128
+
+    init(files: [URL], destDir: String, fs: any TransferFileSystem, onAllDone: @escaping () -> Void) {
         self.direction = .upload
         self.destDir = destDir
         self.fs = fs
         self.onAllDone = onAllDone
-        let mapped = files.map { UploadItem(url: $0, destDir: destDir) }
-        self.items = mapped
-        self.totalBytes = mapped.reduce(0) { $0 + $1.localSize }
+        self.uploadRoots = files
+        self.items = []
+        self.totalBytes = 0
     }
 
-    /// 下载任务：把远端文件拉到本地。`localURLs` 与 `files` 一一对应，由上层去重产出
-    /// （不覆盖本地已有文件、不与其它进行中下载撞名，必要时加 “ (n)” 后缀），`dir` 仅用于展示保存位置。
     init(download files: [RemoteFile], toLocalURLs localURLs: [URL], inDir dir: URL,
-         fs: RemoteFS, onAllDone: @escaping () -> Void) {
+         fs: any TransferFileSystem, onAllDone: @escaping () -> Void) {
         self.direction = .download
         self.destDir = dir.path
         self.fs = fs
         self.onAllDone = onAllDone
-        let mapped = zip(files, localURLs).map { UploadItem(download: $0, toLocalURL: $1) }
-        self.items = mapped
-        self.totalBytes = mapped.reduce(0) { $0 + $1.localSize }
+        self.downloadRoots = zip(files, localURLs).map { .download($0, to: $1) }
+        self.items = []
+        self.totalBytes = 0
     }
 
     func start() {
@@ -164,8 +174,106 @@ final class UploadTask: ObservableObject {
         Task { await run() }
     }
 
+    private func checkpoint() async throws {
+        await waitIfPaused()
+        if control.signal == .cancel { throw CancellationError() }
+    }
+
     private func run() async {
-        if direction == .download { await runDownload() } else { await runFrom() }
+        let walker = DirectoryTransfer(direction: direction, fs: fs, checkpoint: { [self] in
+            try await checkpoint()
+        }, consume: { [self] entry in
+            try await consume(entry)
+        })
+        do {
+            if let source = retrySource {
+                while var entry = try source.next() {
+                    entry.error = nil
+                    entry.interrupted = retryResuming && entry.interrupted
+                    try await walker.walk(entry)
+                }
+                retrySource = nil
+            } else if direction == .upload {
+                for url in uploadRoots {
+                    try await checkpoint()
+                    try await walker.walk(TransferEntry.upload(url, to: destDir))
+                }
+            } else {
+                for entry in downloadRoots { try await walker.walk(entry) }
+            }
+        } catch is CancellationError {
+            control.set(.cancel)
+        } catch {
+            journalError = error.localizedDescription
+            failureCount += 1
+        }
+        finish()
+    }
+
+    private func consume(_ entry: TransferEntry) async throws -> Bool {
+        try await checkpoint()
+        releaseHeldLock()  // 不能在递归等待下一项时继续持有上一文件锁。
+        if items.count >= Self.historyLimit {
+            archivedSent += items.removeFirst().sent
+        }
+        let item = UploadItem(entry: entry)
+        items.append(item)
+        index = items.count - 1
+        itemCount += 1
+        totalBytes += entry.size
+        if let error = entry.error {
+            item.state = .failed(error)
+        } else if entry.kind == .skipped {
+            item.state = .skipped
+        } else if direction == .upload {
+            await runFrom()
+        } else {
+            await runDownload()
+        }
+        if case .failed = item.state {
+            failureCount += 1
+            var failed = entry
+            failed.interrupted = item.interrupted
+            journalHasPartials = journalHasPartials || item.interrupted
+            do {
+                if failures == nil { failures = try TransferJournal() }
+                try failures?.append(failed)
+            } catch {
+                // 无法保存重试记录时停止继续产生文件项，不能静默丢失失败项。
+                journalError = error.localizedDescription
+                throw error
+            }
+        }
+        if item.state == .done { doneCount += 1 }
+        if item.state == .skipped || item.state == .cancelled { excludedBytes += item.localSize }
+        processedCount += 1
+        overallSent = archivedSent + items.reduce(0) { $0 + $1.sent }
+        try await checkpoint()
+        return item.state == .done
+    }
+
+    /// 目录项也走现有任务的暂停/取消与失败状态；失败只跳过该子树。
+    private func prepareDirectory(_ item: UploadItem) async {
+        item.state = .checking
+        do {
+            if direction == .upload {
+                try await fs.ensureDirectory(item.remotePath)
+            } else {
+                let url = item.url
+                try await Task.detached {
+                    if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path) {
+                        guard attrs[.type] as? FileAttributeType == .typeDirectory else {
+                            throw RemoteFSError(message: String(localized: "目标已存在且不是目录"))
+                        }
+                    } else {
+                        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+                    }
+                }.value
+            }
+            item.state = .done
+        } catch {
+            item.state = .failed((error as? RemoteFSError)?.message ?? (error as? SFTPError)?.message ?? error.localizedDescription)
+        }
     }
 
     func cancel() {
@@ -176,6 +284,7 @@ final class UploadTask: ObservableObject {
         }
         guard phase == .running || phase == .paused else { return }
         control.set(.cancel)
+        onCancelRequested?()  // 唤醒路径锁等待者，使其立即看到取消信号。
         // 若卡在同名询问，唤醒它（否则 runFrom 挂在 await 上，cancel 无效）
         if let cont = askCont { askCont = nil; pendingAsk = nil; cont.resume(returning: .cancel) }
         wakeFromPause()   // 暂停态取消：唤醒挂起的主循环，使其看到 .cancel 后收尾
@@ -232,18 +341,28 @@ final class UploadTask: ObservableObject {
     /// 跑完后重试/续传失败项。
     func retryFailed(resume: Bool) {
         guard phase == .done else { return }
-        for it in items {
-            if case .failed = it.state {
-                if !resume { it.interrupted = false }   // 重试=从 0；续传=保留半截
-                it.state = .waiting
-            }
-        }
+        guard journalError == nil, let failures else { return }
+        failures.rewind()
+        retrySource = failures
+        self.failures = nil
+        retryResuming = resume
+        journalHasPartials = false
+        items = []
+        itemCount = 0
+        processedCount = 0
+        doneCount = 0
+        failureCount = 0
+        archivedSent = 0
+        excludedBytes = 0
+        totalBytes = 0
+        overallSent = 0
         index = 0
-        phase = .running
+        phase = .queued
+        started = false
         control.set(.run)
         pendingBaselineReset = true
-        Task { await sampleLoop() }
-        Task { await run() }
+        if let onPauseStateChanged { onPauseStateChanged() } else { start() }
+
     }
 
     func resolveAsk(_ a: AskAction) {
@@ -262,6 +381,7 @@ final class UploadTask: ObservableObject {
 
     private func runFrom() async {
         while index < items.count {
+            await waitIfPaused()
             if control.signal == .cancel { break }
             let item = items[index]
             if item.state == .done || item.state == .skipped || item.state == .cancelled {
@@ -269,6 +389,9 @@ final class UploadTask: ObservableObject {
             }
             await switchLock(to: lockKey(item))   // 同名文件互斥：取得本文件写锁（暂停恢复同文件不重复获取）
             if control.signal == .cancel { break } // 等锁期间可能被取消
+            await waitIfPaused()
+            if control.signal == .cancel { break }
+            if item.isDirectory { await prepareDirectory(item); index += 1; continue }
             item.state = .checking
             pendingBaselineReset = true
             let probe = await fs.probeUpload(remotePath: item.remotePath)
@@ -298,12 +421,15 @@ final class UploadTask: ObservableObject {
                 }
             }
 
+            await waitIfPaused()
+            if control.signal == .cancel { break }
             item.state = .uploading
             control.set(.run)
             control.setSent(startOffset)
 
             let outcome = await fs.upload(localURL: item.url, toRemote: item.remotePath,
                                           startOffset: startOffset, control: control)
+            item.sent = min(item.localSize, control.sent)
 
             switch outcome {
             case .completed:
@@ -324,17 +450,20 @@ final class UploadTask: ObservableObject {
             if control.signal == .cancel { break }
             await waitIfPaused()                     // 暂停则挂起，恢复后回到循环重传当前项（保留文件写锁）
         }
-        finish()   // finish() 内统一释放写锁并回收 SFTP 会话
     }
 
-    /// 下载主循环：逐个把远端文件流式拉到本地（带进度/取消）。无同名询问/续传（更简单）。
+    /// 下载主循环：目录创建后，普通文件流式拉到本地；暂停后从本地半截续传。
     private func runDownload() async {
         while index < items.count {
+            await waitIfPaused()
             if control.signal == .cancel { break }
             let item = items[index]
             if item.state == .done { index += 1; continue }
             await switchLock(to: lockKey(item))   // 同名本地目标互斥：避免两任务同时写同一文件
             if control.signal == .cancel { break }
+            await waitIfPaused()
+            if control.signal == .cancel { break }
+            if item.isDirectory { await prepareDirectory(item); index += 1; continue }
             item.state = .uploading        // 复用「传输中」态
             control.set(.run)
             // 暂停恢复：本地已有半截则从其大小续传，远端从该偏移继续读
@@ -361,7 +490,6 @@ final class UploadTask: ObservableObject {
             if control.signal == .cancel { break }
             await waitIfPaused()
         }
-        finish()   // finish() 内统一释放写锁并回收 SFTP 会话
     }
 
     private func resolveOverwrite(item: UploadItem, finalSize: Int64) async -> OverwriteDecision {
@@ -380,14 +508,14 @@ final class UploadTask: ObservableObject {
     }
 
     private func finish() {
-        let landedAny = items.contains { $0.state == .done }
+        let landedAny = doneCount > 0
         if control.signal == .cancel {
             for it in items {
                 switch it.state {
                 case .done, .skipped, .failed: break
                 default:
                     it.state = .cancelled
-                    if direction == .download { try? FileManager.default.removeItem(at: it.url) }   // 删半截本地文件
+                    if direction == .download, !it.isDirectory { try? FileManager.default.removeItem(at: it.url) }   // 删半截本地文件
                 }
             }
             phase = .cancelled
@@ -403,11 +531,11 @@ final class UploadTask: ObservableObject {
 
     private func postCompletionNotification() {
         let verb = String(localized: direction == .upload ? "上传" : "下载")
-        let done = items.filter { $0.state == .done }.count
+        let done = doneCount
         if hasFailures {
-            Notifier.notify(title: String(localized: "\(verb)部分失败"), body: String(localized: "成功 \(done)/\(items.count) 个文件"))
+            Notifier.notify(title: String(localized: "\(verb)部分失败"), body: String(localized: "成功 \(done)/\(itemCount) 项"))
         } else {
-            Notifier.notify(title: String(localized: "\(verb)完成"), body: String(localized: "\(done) 个文件 · \(humanSize(totalBytes))"))
+            Notifier.notify(title: String(localized: "\(verb)完成"), body: String(localized: "\(done) 项 · \(humanSize(totalBytes))"))
         }
     }
 
@@ -421,7 +549,7 @@ final class UploadTask: ObservableObject {
                 let it = items[index]
                 it.sent = max(it.sent, min(it.localSize, control.sent))
             }
-            let overall = items.reduce(0) { $0 + $1.sent }
+            let overall = archivedSent + items.reduce(0) { $0 + $1.sent }
             overallSent = overall
             if pendingBaselineReset {
                 lastSampledOverall = overall
@@ -438,25 +566,37 @@ final class UploadTask: ObservableObject {
 
     /// 分母剔除跳过/取消项（审查 R14）。
     var effectiveTotal: Int64 {
-        items.reduce(0) { (it: Int64, x) in
-            (x.state == .skipped || x.state == .cancelled) ? it : it + x.localSize
-        }
+        totalBytes - excludedBytes
     }
+
     var eta: Double {
         guard speed > 1, phase == .running else { return 0 }
         return Double(effectiveTotal - overallSent) / speed
     }
-    var hasFailures: Bool { items.contains { if case .failed = $0.state { return true }; return false } }
+    var hasFailures: Bool { hasFailure }
+    var canRetry: Bool { failures != nil && journalError == nil }
+    var transferError: String? { journalError }
 
     /// 是否存在"传了一半被取消/失败"的远端残留 .part（可保留以便下次续传，或删除）。仅上传有此概念。
-    var hasPartials: Bool { direction == .upload && items.contains { partialRemotePath($0) != nil } }
+    var hasPartials: Bool { direction == .upload && (journalHasPartials || retrySource != nil || items.contains { partialRemotePath($0) != nil }) }
 
     /// 删除所有残留 .part（用户取消时选择"删除残留"）。best-effort，失败靠下次 probe 自愈。
     func cleanupPartials() {
         let paths = items.compactMap(partialRemotePath)
-        guard !paths.isEmpty else { return }
+        let journals = [failures, retrySource].compactMap { $0 }
         let fs = self.fs
-        Task { for p in paths { await fs.cleanupPart(remotePath: p) }; fs.closeSession() }   // 删完即关，勿留会话
+        Task {
+            for path in paths { await fs.cleanupPart(remotePath: path) }
+            do {
+                for journal in journals {
+                    journal.rewind()
+                    while let entry = try journal.next() {
+                        if entry.interrupted { await fs.cleanupPart(remotePath: entry.remotePath) }
+                    }
+                }
+            } catch { journalError = error.localizedDescription }
+            fs.closeSession()
+        }
     }
 
     private func partialRemotePath(_ it: UploadItem) -> String? {
@@ -487,6 +627,13 @@ struct UploadDialog: View {
             fileList
             infoRow
             if let ask = task.pendingAsk { askPanel(ask) }
+            if let error = task.transferError {
+                Text(verbatim: error).font(.system(size: 11)).foregroundStyle(Pal.red)
+            }
+            if task.itemCount > UploadTask.historyLimit {
+                Text("仅显示最近 \(UploadTask.historyLimit) 项，失败项可全部重试")
+                    .font(.system(size: 11)).foregroundStyle(Pal.subtext)
+            }
             if task.phase == .cancelled, task.hasPartials {
                 Text("已取消，远端残留半截文件。「保留」可下次从断点续传，「删除残留」清掉它。")
                     .font(.system(size: 11)).foregroundStyle(Pal.subtext)
@@ -533,7 +680,7 @@ struct UploadDialog: View {
         let (label, fg): (String, Color) = {
             switch task.phase {
             case .queued:    return (String(localized: "排队中"), Pal.overlay)
-            case .running:   return ("\(min(task.index + 1, task.items.count))/\(task.items.count)", Pal.mauve)
+            case .running:   return ("\(task.processedCount)/\(task.itemCount)", Pal.mauve)
             case .paused:    return (String(localized: "已暂停"), Pal.yellow)
             case .done:      return task.hasFailures ? (String(localized: "部分失败"), Pal.yellow) : (String(localized: "完成"), Pal.green)
             case .cancelled: return (String(localized: "已取消"), Pal.overlay)
@@ -603,10 +750,12 @@ struct UploadDialog: View {
                 }
                 pill(String(localized: "取消"), fg: Pal.subtext, base: Pal.fill(0.07)) { task.cancel() }
             case .done where task.hasFailures:
-                if task.direction == .upload {   // 续传仅上传支持（远端 .part）
+                if task.direction == .upload && task.canRetry {   // 续传仅上传支持（远端 .part）
                     pill(String(localized: "续传失败项"), fg: Pal.mauve, base: Pal.mauve.opacity(0.14)) { task.retryFailed(resume: true) }
                 }
-                pill(String(localized: "重试"), fg: Pal.subtext, base: Pal.fill(0.07)) { task.retryFailed(resume: false) }
+                if task.canRetry {
+                    pill(String(localized: "重试"), fg: Pal.subtext, base: Pal.fill(0.07)) { task.retryFailed(resume: false) }
+                }
                 pill(String(localized: "关闭"), fg: Pal.overlay, base: Pal.fill(0.07), action: onClose)
             case .cancelled where task.hasPartials:
                 pill(String(localized: "保留残留（下次续传）"), fg: Pal.mauve, base: Pal.mauve.opacity(0.14), action: onClose)

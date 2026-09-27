@@ -7478,6 +7478,86 @@
           }
         }
       }
+    },
+    "无效远端文件名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid remote file name"
+          }
+        }
+      }
+    },
+    "目标已存在且不是目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The destination exists and is not a directory"
+          }
+        }
+      }
+    },
+    "目录层级过深": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Directory nesting is too deep"
+          }
+        }
+      }
+    },
+    "仅显示最近 %lld 项，失败项可全部重试": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Showing the latest %lld items; all failed items can be retried"
+          }
+        }
+      }
+    },
+    "选择要上传到「%@」的文件或文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose files or folders to upload to “%@”"
+          }
+        }
+      }
+    },
+    "下载选中的文件或文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download selected files or folders"
+          }
+        }
+      }
+    },
+    "成功 %lld/%lld 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Succeeded: %lld/%lld items"
+          }
+        }
+      }
+    },
+    "%lld 项 · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld items · %@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

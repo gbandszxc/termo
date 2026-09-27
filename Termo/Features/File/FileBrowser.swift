@@ -184,8 +184,9 @@ struct FileBrowser: View {
         .animation(.easeOut(duration: 0.12), value: dropTarget)
         .onDrop(of: [.fileURL], isTargeted: canUpload ? $dropTarget : nil) { providers in
             guard canUpload else { return false }
+            let directory = state.path
             loadURLs(providers) { urls in
-                if !urls.isEmpty { model.uploadFiles(urls, toDir: state.path, host: host) }
+                if !urls.isEmpty { model.uploadFiles(urls, toDir: directory, host: host) }
             }
             return true
         }
@@ -216,8 +217,10 @@ struct FileBrowser: View {
         for p in providers {
             group.enter()
             _ = p.loadObject(ofClass: URL.self) { url, _ in
-                if let url, url.isFileURL { urls.append(url) }
-                group.leave()
+                DispatchQueue.main.async {
+                    if let url, url.isFileURL { urls.append(url) }
+                    group.leave()
+                }
             }
         }
         group.notify(queue: .main) { completion(urls) }
@@ -239,7 +242,7 @@ struct FileBrowser: View {
                 .textSelection(.enabled)
 
             if !state.selectedFiles.isEmpty {
-                let dlFiles = state.selectedFiles.filter { !$0.isDir }
+                let dlFiles = state.selectedFiles.filter { $0.kind == .file || $0.isDir }
                 if !dlFiles.isEmpty {
                     Button { model.downloadFiles(dlFiles, host: host) } label: {
                         HStack(spacing: 5) {
@@ -253,7 +256,7 @@ struct FileBrowser: View {
                     }
                     .buttonStyle(.plain)
                     .pointerCursor()
-                    .help(String(localized: "下载选中的文件"))
+                    .help(String(localized: "下载选中的文件或文件夹"))
                 }
                 Button { model.requestBatchDelete(state.selectedFiles, host: host, target: state) } label: {
                     HStack(spacing: 5) {
@@ -400,7 +403,7 @@ struct FileBrowser: View {
             if !state.selection.contains(file.path) { state.selection = [file.path] }   // 右键未选中项 → 先选中它
             if state.selection.count > 1, state.selection.contains(file.path) {
                 let sel = state.selectedFiles
-                let dl = sel.filter { !$0.isDir }
+                let dl = sel.filter { $0.kind == .file || $0.isDir }
                 if !dl.isEmpty {
                     menu.addItem(ClosureMenuItem(title: String(localized: "下载选中 (\(dl.count))"), systemImage: "square.and.arrow.down") {
                         model.downloadFiles(dl, host: host)
@@ -420,6 +423,11 @@ struct FileBrowser: View {
     }
 
     private func addSingleFileItems(to menu: NSMenu, file: RemoteFile) {
+        if file.kind == .file || file.isDir {
+            menu.addItem(ClosureMenuItem(title: String(localized: "下载"), systemImage: "square.and.arrow.down") {
+                model.downloadFiles([file], host: host)
+            })
+        }
         if file.isDir {
             menu.addItem(ClosureMenuItem(title: String(localized: "上传文件…"), systemImage: "square.and.arrow.up") {
                 model.beginUpload(into: file, host: host)
@@ -432,9 +440,6 @@ struct FileBrowser: View {
             })
             menu.addItem(.separator())
         } else {
-            menu.addItem(ClosureMenuItem(title: String(localized: "下载"), systemImage: "square.and.arrow.down") {
-                model.downloadFiles([file], host: host)
-            })
             if ArchiveKind.detect(file.name) != nil {
                 menu.addItem(ClosureMenuItem(title: String(localized: "解压"), systemImage: "doc.zipper") {
                     model.requestExtract(file, host: host)

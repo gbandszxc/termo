@@ -1064,7 +1064,7 @@ final class AppModel: ObservableObject {
         }
         for t in transfers where t.phase == .running || t.phase == .queued || t.phase == .paused {
             let verb = t.direction == .upload ? String(localized: "上传") : String(localized: "下载")
-            out.append(String(localized: "\(verb) · \(t.hostName) · \(t.items.count) 项"))
+            out.append(String(localized: "\(verb) · \(t.hostName) · \(t.itemCount) 项"))
         }
         if let e = extractTask, e.phase == .running {
             out.append(String(localized: "解压 · \(e.hostName) · \(e.archive.name)"))
@@ -1815,10 +1815,11 @@ final class AppModel: ObservableObject {
         task.onFinished = { [weak self] in self?.transferDidFinish() }
         task.onPauseStateChanged = { [weak self] in self?.pumpTransferQueue() }
         // 逐文件互斥锁：仅当两任务真要写同一目标文件时才串行，按字节冲突而非整任务冲突，杜绝空占名额。
-        task.acquirePathLock = { [weak self] key in
-            guard let self else { return }
-            await self.acquireTransferPath(key)
+        task.acquirePathLock = { [weak self] key, control in
+            guard let self else { return false }
+            return await self.acquireTransferPath(key, control: control)
         }
+        task.onCancelRequested = { [weak self] in self?.wakeTransferPathWaiters() }
         task.releasePathLock = { [weak self] key in
             guard let self else { return }
             self.releaseTransferPath(key)
@@ -1864,14 +1865,25 @@ final class AppModel: ObservableObject {
     private var transferPathWaiters: [String: [CheckedContinuation<Void, Never>]] = [:]
 
     /// 获取某目标文件的写锁；已被占用则挂起，待持有者释放后重新竞争（释放会唤醒全部等待者，由其各自重判）。
-    func acquireTransferPath(_ key: String) async {
+    func acquireTransferPath(_ key: String, control: UploadControl? = nil) async -> Bool {
         while lockedTransferPaths.contains(key) {
+            if control?.signal == .cancel { return false }
             await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
                 transferPathWaiters[key, default: []].append(c)
             }
         }
+        if control?.signal == .cancel { return false }
         lockedTransferPaths.insert(key)
+        return true
     }
+
+    /// 取消时只唤醒等待者，不释放别的任务正在持有的锁。
+    func wakeTransferPathWaiters() {
+        let waiters = transferPathWaiters.values.flatMap { $0 }
+        transferPathWaiters.removeAll()
+        for waiter in waiters { waiter.resume() }
+    }
+
     /// 释放写锁并唤醒所有等待该文件的任务（其中一个会抢到，其余重新挂起）。
     func releaseTransferPath(_ key: String) {
         lockedTransferPaths.remove(key)
@@ -1930,10 +1942,10 @@ final class AppModel: ObservableObject {
         guard folder.isDir else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
-        panel.canChooseDirectories = false
+        panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true
         panel.prompt = String(localized: "上传")
-        panel.message = String(localized: "选择要上传到「\(folder.name)」的文件")
+        panel.message = String(localized: "选择要上传到「\(folder.name)」的文件或文件夹")
         guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
         startUpload(files: panel.urls, destDir: folder.path, host: host)
     }
@@ -1942,28 +1954,18 @@ final class AppModel: ObservableObject {
     func uploadDroppedFiles(_ urls: [URL], toTabId tabId: Int) {
         guard let tab = tabs.first(where: { $0.id == tabId }),
               let host = host(tab.hostId), let ssh = host.ssh, !ssh.host.isEmpty else { return }
-        // 只传文件，跳过目录
-        let files = urls.filter { !((try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false) }
-        guard !files.isEmpty else {
-            pendingFileInfo = FileInfoContext(title: String(localized: "无法上传"), message: String(localized: "暂不支持拖拽文件夹，请拖入文件。"))
-            return
-        }
+        guard !urls.isEmpty else { return }
         Task { @MainActor in
             let cwd: String
             if let known = tabCwd[tabId] { cwd = known } else { cwd = await RemoteFS(ssh).home() }
-            startUpload(files: files, destDir: cwd, host: host)
+            startUpload(files: urls, destDir: cwd, host: host)
         }
     }
 
-    /// 拖拽上传：把外部拖入的文件上传到指定远端目录（SFTP 浏览器拖放用）。只传文件，跳过文件夹。
+    /// 拖拽上传：把外部拖入的文件上传到指定远端目录（SFTP 浏览器拖放用）。文件与目录统一进入递归上传入口。
     func uploadFiles(_ urls: [URL], toDir dir: String, host: Host) {
         guard let ssh = host.ssh, !ssh.host.isEmpty, !dir.isEmpty else { return }
-        let files = urls.filter { !((try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false) }
-        guard !files.isEmpty else {
-            pendingFileInfo = FileInfoContext(title: String(localized: "无法上传"), message: String(localized: "暂不支持拖拽文件夹，请拖入文件。"))
-            return
-        }
-        startUpload(files: files, destDir: dir, host: host)
+        startUpload(files: urls.filter(\.isFileURL), destDir: dir, host: host)
     }
 
     /// 启动上传任务（核心）：入队后按并发上限自动开始；落地后局部刷新相关文件树缓存。
@@ -2144,9 +2146,12 @@ final class AppModel: ObservableObject {
     // MARK: - 下载
 
     /// 下载远端文件到本地：按设置取目录或每次询问目录；进度/后台复用上传那套传输对话框，完成后在访达定位。
-    /// 与上传共用传输队列（可并发，超出排队）。目录暂不支持，仅文件。
+    /// 与上传共用传输队列（可并发，超出排队）。目录按需递归读取，普通文件复用单文件传输。
     func downloadFiles(_ files: [RemoteFile], host: Host) {
-        let downloadable = files.filter { !$0.isDir }
+        let downloadable = files.filter {
+            ($0.kind == .file || $0.isDir) && !$0.name.isEmpty && $0.name != "." && $0.name != ".."
+                && !$0.name.contains("/") && !$0.name.contains(":") && !$0.name.contains("\0")
+        }
         guard !downloadable.isEmpty, let ssh = host.ssh, !ssh.host.isEmpty else { return }
         let dir: URL
         if AppSettings.shared.downloadAskEachTime {
@@ -2178,22 +2183,11 @@ final class AppModel: ObservableObject {
         var taken = Set<String>()
         for t in transfers where t.direction == .download {
             switch t.phase { case .done, .cancelled: break
-            default: for it in t.items { taken.insert(it.url.path) } }
+            default: for url in t.reservedDownloadURLs { taken.insert(url.path) } }
         }
-        let fm = FileManager.default
         var result: [URL] = []
         for f in files {
-            var candidate = dir.appendingPathComponent(f.name)
-            if fm.fileExists(atPath: candidate.path) || taken.contains(candidate.path) {
-                let base = (f.name as NSString).deletingPathExtension
-                let ext = (f.name as NSString).pathExtension
-                var n = 1
-                repeat {
-                    let newName = ext.isEmpty ? "\(base) (\(n))" : "\(base) (\(n)).\(ext)"
-                    candidate = dir.appendingPathComponent(newName)
-                    n += 1
-                } while fm.fileExists(atPath: candidate.path) || taken.contains(candidate.path)
-            }
+            let candidate = uniqueDownloadURL(f.name, in: dir, isDirectory: f.isDir, taken: taken)
             taken.insert(candidate.path)   // 同批内也去重
             result.append(candidate)
         }

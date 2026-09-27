@@ -18,6 +18,11 @@ protocol FileOpsTarget: AnyObject {
 func fileOpsMenuItems(file: RemoteFile, host: Host, model: AppModel,
                       target: any FileOpsTarget, onRefresh: @escaping () -> Void) -> some View {
     Group {
+        if file.kind == .file || file.isDir {
+            Button { model.downloadFiles([file], host: host) } label: {
+                Label("下载", systemImage: "square.and.arrow.down")
+            }
+        }
         if file.isDir {
             Button { model.beginUpload(into: file, host: host) } label: {
                 Label("上传文件…", systemImage: "square.and.arrow.up")
@@ -30,9 +35,6 @@ func fileOpsMenuItems(file: RemoteFile, host: Host, model: AppModel,
             }
             Divider()
         } else {
-            Button { model.downloadFiles([file], host: host) } label: {
-                Label("下载", systemImage: "square.and.arrow.down")
-            }
             if ArchiveKind.detect(file.name) != nil {
                 Button { model.requestExtract(file, host: host) } label: {
                     Label("解压", systemImage: "doc.zipper")

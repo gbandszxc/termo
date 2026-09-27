@@ -65,7 +65,7 @@ struct RemoteFile: Identifiable, Hashable {
 
 /// 基于系统 ssh 的远程文件系统操作（复用 SSHConnection 的全部连接配置与 askpass）。
 /// 每次操作起一个短命 ssh 进程，靠 ControlMaster 复用主连接，认证只触发一次。
-final class RemoteFS {
+final class RemoteFS: TransferFileSystem {
     private let ssh: SSHConnection
     init(_ ssh: SSHConnection) { self.ssh = ssh }
 
@@ -284,9 +284,16 @@ final class RemoteFS {
                 let sig = control.signal
                 if sig == .cancel { try? fh.close(); await session().closeHandle(handle); return .cancelled }
                 if sig == .pause { try? fh.close(); await session().closeHandle(handle); return .paused }  // 保留本地半截
-                guard let chunk = try await session().read(handle, offset: offset, length: 32768),
-                      !chunk.isEmpty else { break }
-                fh.write(chunk)
+                let chunk: Data?
+                do { chunk = try await session().read(handle, offset: offset, length: 32768) }
+                catch { try? fh.close(); await session().closeHandle(handle); throw error }
+                guard let chunk, !chunk.isEmpty else { break }
+                do { try fh.write(contentsOf: chunk) }
+                catch {
+                    try? fh.close()
+                    await session().closeHandle(handle)
+                    return .failed(String(localized: "无法写入本地文件"))
+                }
                 offset += UInt64(chunk.count)
                 control.setSent(Int64(offset))
             }
@@ -751,6 +758,46 @@ final class RemoteFS {
             catch { return .failure(RemoteFSError(message: String(localized: "列目录失败"))) }
         }
         return await listViaShell(path)
+    }
+
+    /// 目录传输只使用 SFTP 的分批读取，不回退到可能跟随链接的 shell 列表。
+    func enumerateDirectory(_ path: String, visit: (RemoteFile) async throws -> Void) async throws {
+        guard isSftpUsable else { throw RemoteFSError(message: String(localized: "需要 SFTP 连接")) }
+        let s = session()
+        guard kindFromMode((try await s.lstat(path)).permissions) == .directory else {
+            throw RemoteFSError(message: String(localized: "目标已存在且不是目录"))
+        }
+        let h = try await s.opendir(path)
+        do {
+            while let batch = try await s.readdir(h) {
+                for (name, attrs) in batch where name != "." && name != ".." {
+                    try await visit(RemoteFile(name: name, path: join(path, name),
+                                               kind: kindFromMode(attrs.permissions),
+                                               size: Int64(clamping: attrs.size ?? 0), modified: nil))
+                }
+            }
+            await s.closeHandle(h)
+        } catch {
+            await s.closeHandle(h)
+            throw error
+        }
+    }
+
+    /// 合并已有真实目录，但不跟随同名链接，也不把同名普通文件当目录。
+    func ensureDirectory(_ path: String) async throws {
+        let s = session()
+        do {
+            let attrs = try await s.lstat(path)
+            guard kindFromMode(attrs.permissions) == .directory else {
+                throw RemoteFSError(message: String(localized: "目标已存在且不是目录"))
+            }
+        } catch let e as SFTPError where e.isNoSuchFile {
+            do { try await s.mkdir(path) }
+            catch {
+                // 并发任务可能在 lstat 与 mkdir 之间创建了目录。
+                guard let attrs = try? await s.lstat(path), kindFromMode(attrs.permissions) == .directory else { throw error }
+            }
+        }
     }
 
     private func sftpList(_ path: String) async throws -> [RemoteFile] {
