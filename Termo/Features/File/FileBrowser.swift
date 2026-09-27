@@ -8,17 +8,22 @@ final class BrowserState: ObservableObject, FileOpsTarget {
     @Published var path: String = ""
     @Published var entries: [RemoteFile] = []
     @Published var phase: LoadPhase = .loading
+    @Published var navigationError: String?
     @Published var showHidden = false
     @Published var selection: Set<String> = []   // 选中文件路径（多选下载）
     @Published var hoveredPath: String? = nil     // 鼠标悬停的行（由统一交互层上报）
     var marqueeBase: Set<String> = []             // 框选开始前的选择快照（ESC 取消时恢复）
 
     private let fs: RemoteFS
+    private let listDirectory: (String) async -> Result<[RemoteFile], RemoteFSError>
     private var backStack: [String] = []
     private var loadTask: Task<Void, Never>?
     private var started = false
 
-    init(fs: RemoteFS) { self.fs = fs }
+    init(fs: RemoteFS, listDirectory: ((String) async -> Result<[RemoteFile], RemoteFSError>)? = nil) {
+        self.fs = fs
+        self.listDirectory = listDirectory ?? fs.list
+    }
 
     var canGoBack: Bool { !backStack.isEmpty }
     var canGoUp: Bool { path != "/" && !path.isEmpty }
@@ -53,7 +58,9 @@ final class BrowserState: ObservableObject, FileOpsTarget {
         guard !started else { return }
         started = true
         loadTask = Task {
+            guard !Task.isCancelled else { return }
             let home = await fs.home()
+            guard !Task.isCancelled else { return }
             await load(home, pushBack: false)
         }
     }
@@ -70,13 +77,16 @@ final class BrowserState: ObservableObject, FileOpsTarget {
     }
 
     func goBack() {
-        guard let prev = backStack.popLast() else { return }
+        guard let prev = backStack.last else { return }
         loadTask?.cancel()
-        loadTask = Task { await load(prev, pushBack: false) }
+        loadTask = Task {
+            if await load(prev, pushBack: false) { backStack.removeLast() }
+        }
     }
 
     func reload() {
         loadTask?.cancel()
+        guard !path.isEmpty else { started = false; startIfNeeded(); return }
         let p = path
         loadTask = Task { await load(p, pushBack: false) }
     }
@@ -88,28 +98,68 @@ final class BrowserState: ObservableObject, FileOpsTarget {
         reload()
     }
 
-    private func navigate(to newPath: String) {
+    /// 所有目录入口共用加载流程，只有成功才更新地址和历史。
+    func navigate(to input: String, completion: ((Bool) -> Void)? = nil) {
+        guard Self.resolvePath(input, current: path, home: "/") != nil else {
+            navigationError = String(localized: "请输入有效的目录路径")
+            completion?(false)
+            return
+        }
+        started = true
         loadTask?.cancel()
+        navigationError = nil
+        phase = .loading
         let from = path
         loadTask = Task {
-            await load(newPath, pushBack: true, from: from)
+            let needsHome = input == "~" || input.hasPrefix("~/") || (from.isEmpty && !input.hasPrefix("/"))
+            let home = needsHome ? await fs.home() : ""
+            guard !Task.isCancelled else { return }
+            guard let newPath = Self.resolvePath(input, current: from, home: home) else {
+                navigationError = String(localized: "请输入有效的目录路径")
+                completion?(false)
+                return
+            }
+            let success = await load(newPath, pushBack: true, from: from)
+            completion?(success)
         }
     }
 
-    private func load(_ newPath: String, pushBack: Bool, from: String? = nil) async {
+    /// 不解释 shell 语法；保留 ..，让远端按真实符号链接解析。
+    static func resolvePath(_ input: String, current: String, home: String) -> String? {
+        guard !input.isEmpty, !input.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return nil }
+        if input == "~" { return home }
+        if input.hasPrefix("~/") { return (home == "/" ? "" : home) + String(input.dropFirst()) }
+        if input.hasPrefix("/") { return input }
+        let base = current.isEmpty ? home : current
+        return (base == "/" ? "" : base) + "/" + input
+    }
+
+    @discardableResult
+    private func load(_ newPath: String, pushBack: Bool, from: String? = nil) async -> Bool {
+        navigationError = nil
         phase = .loading
-        let result = await fs.list(newPath)
-        if Task.isCancelled { return }
+        let result = await listDirectory(newPath)
+        if Task.isCancelled { return false }
+        return finishNavigation(result, to: newPath, pushBack: pushBack, from: from)
+    }
+
+    /// 失败不提交地址、列表或历史，返回操作同样遵守此约定。
+    func finishNavigation(_ result: Result<[RemoteFile], RemoteFSError>, to newPath: String,
+                          pushBack: Bool, from: String? = nil) -> Bool {
         switch result {
         case .success(let files):
+            navigationError = nil
             if pushBack, let from, !from.isEmpty { backStack.append(from) }
             path = newPath
             entries = files
             selection = []      // 切目录清空选择
             anchorPath = nil
             phase = .loaded
+            return true
         case .failure(let e):
-            phase = .error(e.message)
+            navigationError = e.message
+            phase = path.isEmpty ? .error(e.message) : .loaded
+            return false
         }
     }
 
@@ -157,6 +207,8 @@ struct FileBrowser: View {
     var onOpenFile: (RemoteFile) -> Void = { _ in }
     @ObservedObject private var theme = ThemeManager.shared
     @State private var dropTarget = false
+    @State private var editingPath = false
+    @State private var pathDraft = ""
 
     private static let dropBlue = Color(hex: 0x1E90FF)
     // 行高与列表顶部内边距：统一交互层据此把鼠标 y 映射到行索引，故必须与渲染一致。
@@ -174,6 +226,16 @@ struct FileBrowser: View {
     var body: some View {
         VStack(spacing: 0) {
             toolbar
+            if let error = state.navigationError {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle").foregroundStyle(Pal.yellow)
+                    Text(verbatim: error)
+                    Text("请检查目录路径及访问权限后重试")
+                    Spacer()
+                }
+                .font(.system(size: 11)).foregroundStyle(Pal.text)
+                .padding(.horizontal, 12).padding(.bottom, 8)
+            }
             Divider().overlay(Pal.fill(0.06))
             columnHeader
             Divider().overlay(Pal.fill(0.06))
@@ -234,12 +296,23 @@ struct FileBrowser: View {
             iconButton("chevron.up", enabled: state.canGoUp) { state.goUp() }
             iconButton("arrow.clockwise", enabled: true) { state.reload() }
 
-            Text(state.path.isEmpty ? "…" : state.path)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundStyle(Pal.subtext)
-                .lineLimit(1).truncationMode(.head)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
+            if editingPath {
+                ThemedTextField(placeholder: "目录路径", text: $pathDraft, autofocus: true) {
+                    state.navigate(to: pathDraft) { success in
+                        if success { editingPath = false }
+                    }
+                }
+                .accessibilityLabel(Text("目录路径"))
+                .onExitCommand { editingPath = false }
+                .disabled(state.phase == .loading)
+            } else {
+                Text(verbatim: state.path.isEmpty ? "…" : state.path)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(Pal.subtext)
+                    .lineLimit(1).truncationMode(.head)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            }
 
             if !state.selectedFiles.isEmpty {
                 let dlFiles = state.selectedFiles.filter { $0.kind == .file || $0.isDir }
@@ -272,6 +345,18 @@ struct FileBrowser: View {
                 .pointerCursor()
                 .help(String(localized: "删除选中的项目"))
             }
+
+            Button {
+                if !editingPath { pathDraft = state.path; state.navigationError = nil }
+                editingPath.toggle()
+            } label: {
+                Image(systemName: editingPath ? "xmark" : "pencil")
+                    .font(.system(size: 12)).foregroundStyle(Pal.subtext)
+                    .frame(width: 26, height: 26).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).pointerCursor()
+            .accessibilityLabel(editingPath ? Text("取消编辑路径") : Text("编辑路径"))
+            .help(editingPath ? String(localized: "取消编辑路径") : String(localized: "编辑路径"))
 
             Button { model.beginUpload(into: currentDir, host: host) } label: {
                 Image(systemName: "square.and.arrow.up")

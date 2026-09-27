@@ -755,6 +755,7 @@ final class RemoteFS: TransferFileSystem {
                 return .failure(RemoteFSError(message: e.isNoSuchFile ? String(localized: "目录不存在")
                     : (e.isPermission ? String(localized: "没有访问权限") : e.message)))
             }
+            catch let e as RemoteFSError { return .failure(e) }
             catch { return .failure(RemoteFSError(message: String(localized: "列目录失败"))) }
         }
         return await listViaShell(path)
@@ -802,6 +803,9 @@ final class RemoteFS: TransferFileSystem {
 
     private func sftpList(_ path: String) async throws -> [RemoteFile] {
         let s = session()
+        if let mode = try await s.stat(path).permissions, kindFromMode(mode) != .directory {
+            throw RemoteFSError(message: String(localized: "路径不是目录"))
+        }
         let h = try await s.opendir(path)
         var files: [RemoteFile] = []
         do {
@@ -824,6 +828,18 @@ final class RemoteFS: TransferFileSystem {
     /// 列出某绝对路径下的条目。优先 GNU `find -printf`（含大小/时间），失败回退到 `ls -1Ap`（仅名称/类型）。
     private func listViaShell(_ path: String) async -> Result<[RemoteFile], RemoteFSError> {
         let b64 = Data(path.utf8).base64EncodedString()
+        let check = await run("P=$(printf %s '\(b64)'|base64 -d); " +
+            "[ -e \"$P\" ] || exit 2; [ -d \"$P\" ] || exit 3; [ -r \"$P\" ] && [ -x \"$P\" ] || exit 4")
+        guard check.code == 0 else {
+            let message: String
+            switch check.code {
+            case 2: message = String(localized: "目录不存在或没有访问权限")
+            case 3: message = String(localized: "路径不是目录")
+            case 4: message = String(localized: "没有访问权限")
+            default: message = String(localized: "无法验证目录，请检查连接后重试")
+            }
+            return .failure(RemoteFSError(message: message))
+        }
         // 主路径：GNU find，NUL 分隔，字段 = 类型\t字节\t mtime秒 \t basename
         let gnu = "P=$(printf %s '\(b64)'|base64 -d); " +
             "find \"$P\" -maxdepth 1 -mindepth 1 -printf '%y\\t%s\\t%Ts\\t%f\\0' 2>/dev/null"

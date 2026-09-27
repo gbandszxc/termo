@@ -15,7 +15,8 @@ struct TerminalDropArea: View {
     private static let dropBlue = Color(hex: 0x1E90FF)   // 同编辑器改动竖条蓝
 
     var body: some View {
-        TerminalSurface(terminal: terminal, isActive: isActive)
+        TerminalSurface(terminal: terminal, isActive: isActive,
+                        onOpenSFTP: canUpload ? { model.openTerminalFiles(tabId) } : nil)
             .overlay { if targeted { dropOverlay } }
             .animation(.easeOut(duration: 0.12), value: targeted)
             .onDrop(of: [.fileURL], isTargeted: canUpload ? $targeted : nil) { providers in
@@ -62,8 +63,10 @@ struct TerminalSurface: NSViewRepresentable {
     let terminal: LocalProcessTerminalView
     var isActive: Bool = true     // tab 是否为当前活动 tab（keep-alive 下所有终端常驻，靠这个区分）
 
+    var onOpenSFTP: (() -> Void)? = nil
+
     func makeNSView(context: Context) -> LocalProcessTerminalView {
-        terminal.menu = Self.buildContextMenu()
+        terminal.menu = Self.buildContextMenu(onOpenSFTP: onOpenSFTP)
         terminal.isHidden = !isActive
         // 只让活动终端首次创建时抢焦点；非活动的不抢（keep-alive 下会同时创建多个，避免互相抢）。
         if isActive {
@@ -80,7 +83,7 @@ struct TerminalSurface: NSViewRepresentable {
         if nsView.isHidden == isActive { nsView.isHidden = !isActive }
     }
 
-    private static func buildContextMenu() -> NSMenu {
+    static func buildContextMenu(onOpenSFTP: (() -> Void)? = nil) -> NSMenu {
         let menu = NSMenu()
 
         let copy = NSMenuItem(title: String(localized: "复制"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
@@ -107,6 +110,11 @@ struct TerminalSurface: NSViewRepresentable {
         search.keyEquivalentModifierMask = .command
         search.tag = Int(NSFindPanelAction.showFindPanel.rawValue)
         menu.addItem(search)
+
+        if let onOpenSFTP {
+            menu.addItem(.separator())
+            menu.addItem(ClosureMenuItem(title: String(localized: "在 SFTP 中打开当前目录"), systemImage: "folder", handler: onOpenSFTP))
+        }
 
         return menu
     }

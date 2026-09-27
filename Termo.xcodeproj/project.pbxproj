@@ -40,6 +40,7 @@
 		50A266AC1A12B573BBAA2DF1 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 9AFD70D7F0CA6271D43F4764 /* SwiftTerm */; };
 		54ED47672872B75CE5DB286F /* KeysPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1983EEAC0FFD7F2C8003C88B /* KeysPanel.swift */; };
 		563B0D4BCEE69D24F6157952 /* PortForward.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FE548D65E22CCE9FF8E686 /* PortForward.swift */; };
+		5961705B69236C6589FC8AD1 /* SFTPNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E906230F56D75F69F263ED44 /* SFTPNavigationTests.swift */; };
 		5A98EB5B5D35F85E9D0876B6 /* AskPasswordDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7EC3A802375763DAFCB55EB /* AskPasswordDialog.swift */; };
 		64558053418AA9F708CEC29A /* RDPSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30E1CDC3F60325B41E91E2B0 /* RDPSession.swift */; };
 		66D1D025912F7FCDB04ABC96 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5758B8305160B2F0356D7F6 /* PrivacyPolicyView.swift */; };
@@ -219,6 +220,7 @@
 		E3B549B96E762A0F96435705 /* TestConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestConnectionView.swift; sourceTree = "<group>"; };
 		E5758B8305160B2F0356D7F6 /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		E7EC3A802375763DAFCB55EB /* AskPasswordDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskPasswordDialog.swift; sourceTree = "<group>"; };
+		E906230F56D75F69F263ED44 /* SFTPNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SFTPNavigationTests.swift; sourceTree = "<group>"; };
 		E965A40BEE2746466C5F6D9E /* CFreeRDP.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = CFreeRDP.xcframework; path = Vendor/CFreeRDP.xcframework; sourceTree = "<group>"; };
 		EC2740433D28692622FE7281 /* AppInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInfo.swift; sourceTree = "<group>"; };
 		EF1A4E31A396CBDCD57DF2AB /* PortForwardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardView.swift; sourceTree = "<group>"; };
@@ -573,6 +575,7 @@
 			isa = PBXGroup;
 			children = (
 				8EE834618AF98B1816CF13B0 /* DirectoryTransferTests.swift */,
+				E906230F56D75F69F263ED44 /* SFTPNavigationTests.swift */,
 			);
 			path = TermoTests;
 			sourceTree = "<group>";
@@ -828,6 +831,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7E96B6C2B8ED10A5E0AB45B0 /* DirectoryTransferTests.swift in Sources */,
+				5961705B69236C6589FC8AD1 /* SFTPNavigationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

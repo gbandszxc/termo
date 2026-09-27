@@ -1603,33 +1603,41 @@ final class AppModel: ObservableObject {
     // 正在打开「文件 (SFTP)」的主机 id：指纹预检/连接较慢时，概览页的 SFTP 卡片显示加载中，给高延迟主机即时反馈。
     @Published var openingFilesHostId: String? = nil
 
-    func openHostFiles(_ host: Host) {
+    func openTerminalFiles(_ tabId: Int) {
+        guard let tab = tabs.first(where: { $0.id == tabId && $0.kind == .terminal }),
+              let host = hosts.first(where: { $0.id == tab.hostId }), host.ssh != nil else { return }
+        openHostFiles(host, at: tabCwd[tabId])
+    }
+
+    func openHostFiles(_ host: Host, at path: String? = nil) {
         // 同一主机已有文件标签则切过去
         if let existing = tabs.first(where: { $0.kind == .files && $0.hostId == host.id }) {
             activeTabId = existing.id
+            if let path { browserState(for: existing.id, host: host).navigate(to: path) }
             return
         }
-        requireAuth(host) { [weak self] in self?.proceedFiles(host.id) }
+        requireAuth(host) { [weak self] in self?.proceedFiles(host.id, path: path) }
     }
 
     /// 「每次询问」首次（未验证）先走连接验证弹窗后再开文件；已验证或密码/密钥直接开。
-    private func proceedFiles(_ hostId: String) {
+    private func proceedFiles(_ hostId: String, path: String?) {
         guard let host = hosts.first(where: { $0.id == hostId }) else { return }
         if host.ssh?.authMethod == .ask, !askVerifiedHosts.contains(hostId) {
-            connectThen(hostId, hint: String(localized: "正在打开文件…")) { [weak self] in self?.startOpenHostFiles(hostId) }
+            connectThen(hostId, hint: String(localized: "正在打开文件…")) { [weak self] in self?.startOpenHostFiles(hostId, path: path) }
         } else {
-            startOpenHostFiles(hostId)
+            startOpenHostFiles(hostId, path: path)
         }
     }
 
-    private func startOpenHostFiles(_ hostId: String) {
+    private func startOpenHostFiles(_ hostId: String, path: String?) {
         guard let host = hosts.first(where: { $0.id == hostId }) else { return }
         guard openingFilesHostId != host.id else { return }   // 防连点重复发起
         openingFilesHostId = host.id
         Task {
             defer { openingFilesHostId = nil }   // 成功开标签 / 取消 / 失败都清除加载态
             guard await verifyHostKey(host) else { return }
-            addTab(.files, title: host.name, hostId: host.id)
+            let id = addTab(.files, title: host.name, hostId: host.id)
+            if let path { browserState(for: id, host: host).navigate(to: path) }
             recordSession(hostId: host.id, kind: .files, detail: String(localized: "文件浏览"))
             prewarmExplorer(for: host)
         }

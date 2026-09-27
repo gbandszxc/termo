@@ -7558,6 +7558,96 @@
           }
         }
       }
+    },
+    "在 SFTP 中打开当前目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Current Directory in SFTP"
+          }
+        }
+      }
+    },
+    "目录路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Directory Path"
+          }
+        }
+      }
+    },
+    "编辑路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Path"
+          }
+        }
+      }
+    },
+    "取消编辑路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel Path Editing"
+          }
+        }
+      }
+    },
+    "请输入有效的目录路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid directory path"
+          }
+        }
+      }
+    },
+    "请检查目录路径及访问权限后重试": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check the directory path and access permissions, then try again"
+          }
+        }
+      }
+    },
+    "目录不存在或没有访问权限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Directory does not exist or access is denied"
+          }
+        }
+      }
+    },
+    "路径不是目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Path is not a directory"
+          }
+        }
+      }
+    },
+    "无法验证目录，请检查连接后重试": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot verify directory. Check the connection and try again"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
