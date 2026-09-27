@@ -1,7 +1,5 @@
 # AGENTS.md — Termo（fork 自用仓库）
 
-给 ZCode agent 的工作区指令。产品介绍、视觉规范、产品事实**已存在于专门文档中，本文件只做索引与规则，不重复其内容**。
-
 ## 最高原则（优先级高于一切）
 
 - 本仓库是 [icloudza/termo](https://github.com/icloudza/termo) 的 **fork，仅供个人自用**，后续会紧跟上游代码。
@@ -21,7 +19,7 @@
 
 ## 样式维护规则（硬性）
 
-1. **文档先行**：任何视觉变化（颜色、圆角、字号、间距、组件规范）必须**先改 DESIGN.md 的 token/章节，再改代码**，两处取值保持一字不差。
+1. **文档先行**：任何视觉变化（颜色、圆角、字号、间距、组件规范）必须**先改 DESIGN.md 的 token/章节，再改代码**，两处取值保持相同。
 2. **token 优先**：代码中的样式值一律取自 `Termo/UI/Theme/Theme.swift`（`ThemeColors` / `Pal`）与 DESIGN.md frontmatter；禁止硬编码新颜色、新圆角档位、新字号档位。
 3. **双主题验证**：每个自绘组件必须在深色（`#1e1e1e` 系）与浅色（`#f5f6f9` 系）下同时正确，用 `Pal.fill()` 叠加体系而非写死色值。
 4. 使用方式：AI 生成新界面时以 DESIGN.md 为唯一视觉依据；其 `.impeccable/design.json` 是 token 的机器可读 sidecar，与 DESIGN.md 同步维护。
