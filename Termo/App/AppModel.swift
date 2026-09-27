@@ -2167,6 +2167,12 @@ final class AppModel: ObservableObject {
         } else {
             dir = AppSettings.shared.resolvedDownloadDir
         }
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        } catch {
+            pendingFileInfo = FileInfoContext(title: String(localized: "下载失败"), message: error.localizedDescription)
+            return
+        }
         // 完成后不再自动弹访达窗口（打断用户）；完成提醒由系统通知给出。
         // 本地保存名去重：不覆盖已有文件、不与进行中下载撞名 → 不同主机/来源的同名文件可并发各自落地。
         let localURLs = resolveDownloadURLs(downloadable, dir: dir)

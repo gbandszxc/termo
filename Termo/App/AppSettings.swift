@@ -95,7 +95,7 @@ final class AppSettings: ObservableObject {
         didSet { d.set(termScrollback, forKey: "termScrollback") }
     }
 
-    /// 默认下载目录（空=系统下载文件夹）。
+    /// 默认下载目录（空=系统下载文件夹下的 Termo）。
     @Published var downloadDir: String {
         didSet { d.set(downloadDir, forKey: "downloadDir") }
     }
@@ -196,13 +196,14 @@ final class AppSettings: ObservableObject {
         }
     }
 
-    /// 实际下载目录：设置为空则用系统下载文件夹。
+    /// 实际下载目录：设置为空则用系统下载文件夹下的 Termo。
     var resolvedDownloadDir: URL {
         if !downloadDir.isEmpty {
             return URL(fileURLWithPath: (downloadDir as NSString).expandingTildeInPath, isDirectory: true)
         }
-        return FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
-            ?? FileManager.default.homeDirectoryForCurrentUser
+        return (FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser)
+            .appendingPathComponent("Termo", isDirectory: true)
     }
 
     /// 解析出实际的 shell 可执行路径。
