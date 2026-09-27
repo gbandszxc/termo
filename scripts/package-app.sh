@@ -6,7 +6,7 @@
 #   产物   : dist/<版本>/Termo.app、dist/<版本>/Termo-<版本>.dmg、dist/dSYMs/<版本>/
 #   签名   : ad-hoc（"-"）。Developer ID 公证/装订见文末 RELEASE 说明（待付费账号到位）。
 #
-# 依赖：Xcode、create-dmg(brew)。DMG 布局经 Finder/AppleScript 设定，需在图形会话(本机终端)运行。
+# 依赖：Xcode、XcodeGen、create-dmg(brew)。DMG 布局经 Finder/AppleScript 设定，需在图形会话(本机终端)运行。
 #
 set -Eeuo pipefail   # -E(errtrace)：让 ERR trap 在函数(run_quiet)内的失败也能触发，否则吞掉 build.log
 
@@ -50,10 +50,13 @@ mkdir -p "$WORK"; : > "$LOG"
 # ── 预检 ────────────────────────────────────────────────────────────────────
 section "预检"
 [ -d "$DEVELOPER_DIR" ] || die "未找到 Xcode（DEVELOPER_DIR=$DEVELOPER_DIR）"
+command -v xcodegen >/dev/null || die "未安装 XcodeGen，请先：brew install xcodegen"
 command -v create-dmg >/dev/null || die "未安装 create-dmg，请先：brew install create-dmg"
 ok "Xcode：$(basename "$(dirname "$(dirname "$DEVELOPER_DIR")")")"
 ok "create-dmg：$(command -v create-dmg)"
 info "构建日志：$LOG"
+step "由 project.yml 生成工程…"
+run_quiet xcodegen generate --spec "$ROOT/project.yml" --project "$ROOT"
 
 # ── 签名身份决议 ────────────────────────────────────────────────────────────
 # 钥匙串有 Developer ID Application 证书 → 正式签名（加固运行时 + 安全时间戳，可公证分发）；
@@ -183,6 +186,7 @@ create-dmg \
     --no-internet-enable \
     "$DMG" "$STAGE" >>"$LOG" 2>&1 || true
 [ -f "$DMG" ] || die "DMG 未生成（详见 $LOG）"
+run_quiet hdiutil verify "$DMG"
 ok "DMG → ${DMG#$ROOT/}"
 
 # ── 公证 DMG（App 已公证时）──────────────────────────────────────────────────

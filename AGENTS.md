@@ -28,6 +28,7 @@
 
 - 工程由 **XcodeGen** 管理：`project.yml` 是唯一工程事实源，**不要手改 `Termo.xcodeproj`**（改了也会被 `xcodegen generate` 覆盖）。
 - 构建：`xcodegen generate && xcodebuild -scheme Termo -configuration Release build`；沙盒 MAS 版用 `DebugMAS` / `ReleaseMAS` 配置。
+- 本地打包默认运行 `scripts/package-app.sh`，自动生成工程、归档并输出 `.app` 与 DMG；不能只运行 `xcodebuild build` 就视为打包完成。产物位于 `dist/<版本>-<build>/`。
 - 版本号唯一源：`Termo/Info.plist`（`CFBundleShortVersionString` + 严格递增的 `CFBundleVersion`）。
 - 发版：`scripts/release.sh`（交互向导，`--dry-run` 预览；推 tag 后由 GitHub Actions 接管构建/签名/公证/发布）。
 - 第三方依赖（FreeRDP / libssh2 / SwiftTerm 等）以 xcframework 形式在 `Vendor/` 与 `LocalPackages/`，勿随手升级。

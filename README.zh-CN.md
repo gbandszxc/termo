@@ -81,6 +81,15 @@ xcodebuild -scheme Termo -configuration Release build
 
 > 需要 Xcode 16+ 与 Apple Silicon 机器。增删源文件后重跑 `xcodegen generate`。
 
+本地打包统一使用以下入口，每次自动生成工程并输出 `.app` 和 DMG 到 `dist/<版本>-<build>/`。普通 `xcodebuild build` 仅用于编译验证，不生成 DMG。
+
+```bash
+brew install xcodegen create-dmg
+./scripts/package-app.sh
+```
+
+打包需在 macOS 图形会话运行；没有 Developer ID 证书时自动使用 ad-hoc 签名。
+
 SFTP 目录传输测试使用内存远端与新建本地临时目录，不连接服务器：
 
 ```bash

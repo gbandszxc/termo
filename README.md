@@ -81,6 +81,15 @@ xcodebuild -scheme Termo -configuration Release build
 
 > Requires Xcode 16+ on an Apple Silicon machine. Re-run `xcodegen generate` after adding or removing source files.
 
+Use this entry point for local packaging. Each run generates the project and produces both an `.app` and a DMG in `dist/<version>-<build>/`. Plain `xcodebuild build` only checks compilation and does not produce a DMG.
+
+```bash
+brew install xcodegen create-dmg
+./scripts/package-app.sh
+```
+
+Run packaging in a macOS graphical session. Without a Developer ID certificate, the script uses ad-hoc signing.
+
 SFTP directory transfer tests use an in-memory remote and fresh local temporary directories; they do not connect to servers:
 
 ```bash
